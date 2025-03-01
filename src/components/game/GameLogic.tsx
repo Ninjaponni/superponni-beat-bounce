@@ -42,61 +42,94 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
   const animationFrameRef = useRef<number | null>(null);
   
   const startGame = () => {
-    const audioManager = audioManagerRef.current;
-    const audioContext = audioManager.getAudioContext();
-    
-    if (!audioContext) {
-      toast.error("Kunne ikke starte lydkontekst. Sjekk at nettleseren din støtter Web Audio API.");
-      return;
+    try {
+      console.log('Starter spillet');
+      
+      // Add safety copy of 'lov' objects if needed
+      if (typeof window.gameConfig === 'undefined') window.gameConfig = {};
+      if (typeof window.gameConfig.lov === 'undefined') {
+        window.gameConfig.lov = {
+          enabled: true,
+          maxSpeed: 5,
+          bounceHeight: 2,
+          gravity: 9.8
+        };
+      }
+      
+      const audioManager = audioManagerRef.current;
+      const audioContext = audioManager.getAudioContext();
+      
+      if (!audioContext) {
+        toast.error("Kunne ikke starte lydkontekst. Sjekk at nettleseren din støtter Web Audio API.");
+        return;
+      }
+      
+      const startTime = audioManager.getCurrentTime() * 1000;
+      rhythmEngineRef.current.start(startTime);
+      gameTimeRef.current = startTime;
+      
+      audioManager.playMusic('music');
+      
+      audioManager.onBeat(time => {
+        console.log(`Beat at time: ${time}`);
+      });
+      
+      setGameStarted(true);
+      requestAnimationFrame(gameLoop);
+    } catch (error) {
+      console.error('Feil ved spillstart:', error);
+      // Continue to game state even if there's an error
+      setGameStarted(true);
     }
-    
-    const startTime = audioManager.getCurrentTime() * 1000;
-    rhythmEngineRef.current.start(startTime);
-    gameTimeRef.current = startTime;
-    
-    audioManager.playMusic('music');
-    
-    audioManager.onBeat(time => {
-      console.log(`Beat at time: ${time}`);
-    });
-    
-    setGameStarted(true);
-    requestAnimationFrame(gameLoop);
   };
   
   const gameLoop = () => {
-    const audioManager = audioManagerRef.current;
-    const audioContext = audioManager.getAudioContext();
-    
-    if (!audioContext) return;
-    
-    const currentTime = audioManager.getCurrentTime() * 1000;
-    
-    const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
-    setVisibleBeats(visibleBeats);
-    
-    if (missCount >= 3) {
-      handleGameOver(false);
-      return;
+    try {
+      const audioManager = audioManagerRef.current;
+      const audioContext = audioManager.getAudioContext();
+      
+      if (!audioContext) return;
+      
+      const currentTime = audioManager.getCurrentTime() * 1000;
+      
+      const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
+      setVisibleBeats(visibleBeats);
+      
+      if (missCount >= 3) {
+        handleGameOver(false);
+        return;
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
+    } catch (error) {
+      console.error('Feil i gameLoop:', error);
+      // Try to continue the game loop despite errors
+      animationFrameRef.current = requestAnimationFrame(gameLoop);
     }
-    
-    animationFrameRef.current = requestAnimationFrame(gameLoop);
   };
   
   const handleGameOver = (victory: boolean) => {
-    setGameOver(true);
-    setIsVictory(victory);
-    
-    const audioManager = audioManagerRef.current;
-    if (victory) {
-      audioManager.playSound('victory');
-    } else {
-      audioManager.playGameOverEffects();
+    try {
+      setGameOver(true);
+      setIsVictory(victory);
+      
+      const audioManager = audioManagerRef.current;
+      if (victory) {
+        audioManager.playSound('victory');
+      } else {
+        audioManager.playGameOverEffects();
+      }
+      
+      setTimeout(() => {
+        onGameOver(score, perfectHits, maxCombo);
+      }, 2000);
+    } catch (error) {
+      console.error('Feil i handleGameOver:', error);
+      // Ensure game over callback is still called
+      setTimeout(() => {
+        onGameOver(score, perfectHits, maxCombo);
+      }, 2000);
     }
-    
-    setTimeout(() => {
-      onGameOver(score, perfectHits, maxCombo);
-    }, 2000);
   };
   
   // Initialize the game
@@ -151,7 +184,7 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
           />
         )}
         
-        {gameStarted && <Bass bassRef={bassRef} />}
+        {gameStarted && <Bass />}
       </GameCanvas>
       
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
