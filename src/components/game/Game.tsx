@@ -13,7 +13,7 @@ import Character from './Character';
 import { toast } from "sonner";
 
 interface GameProps {
-  onGameOver: (score: number) => void;
+  onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
 }
 
 const Game = ({ onGameOver }: GameProps) => {
@@ -123,6 +123,12 @@ const Game = ({ onGameOver }: GameProps) => {
     // Start music
     audioManager.playMusic('music');
     
+    // Setup beat tracking
+    audioManager.onBeat(time => {
+      // This can be used to synchronize game elements with the music beats
+      console.log(`Beat at time: ${time}`);
+    });
+    
     // Start game loop
     setGameStarted(true);
     requestAnimationFrame(gameLoop);
@@ -165,7 +171,7 @@ const Game = ({ onGameOver }: GameProps) => {
     
     // Allow time for final animation before showing game over screen
     setTimeout(() => {
-      onGameOver(score);
+      onGameOver(score, perfectHits, maxCombo);
     }, 2000);
   };
   
