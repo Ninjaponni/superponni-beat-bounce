@@ -17,7 +17,6 @@ window.onerror = function(message, source, lineno, colno, error) {
           lov: {
             enabled: true,
             maxSpeed: 5,
-            bounceHeight: 2,
             gravity: 9.8,
             airResistance: 0.99,
             bounceFactor: 0.8
@@ -55,8 +54,9 @@ const installLovTracker = () => {
         this._lov = {
           enabled: true,
           maxSpeed: 5,
-          bounceHeight: 2,
-          gravity: 9.8
+          gravity: 9.8,
+          airResistance: 0.99,
+          bounceFactor: 0.8
         };
       }
       

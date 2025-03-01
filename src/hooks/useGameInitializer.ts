@@ -33,14 +33,19 @@ export function useGameInitializer({
       try {
         console.log('Initialiserer spill');
         
-        // Add safety net for 'lov' errors
-        if (typeof window.gameConfig === 'undefined') window.gameConfig = {};
-        if (typeof window.gameConfig.lov === 'undefined') {
-          window.gameConfig.lov = {
-            enabled: true,
-            maxSpeed: 5,
-            bounceHeight: 2,
-            gravity: 9.8
+        // Add safety net for 'lov' errors with proper typing
+        if (typeof window.gameConfig === 'undefined') {
+          window.gameConfig = {
+            physics: {
+              lov: {
+                enabled: true,
+                maxSpeed: 5,
+                gravity: 9.8,
+                airResistance: 0.99,
+                bounceFactor: 0.8
+              }
+            },
+            difficulty: 'normal'
           };
         }
         

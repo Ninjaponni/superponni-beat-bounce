@@ -45,16 +45,19 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
     try {
       console.log('Starter spillet');
       
-      // Add safety copy of 'lov' objects if needed
-      if (typeof window.gameConfig === 'undefined') window.gameConfig = {};
-      if (typeof window.gameConfig.lov === 'undefined') {
-        window.gameConfig.lov = {
-          enabled: true,
-          maxSpeed: 5,
-          bounceHeight: 2,
-          gravity: 9.8
-        };
-      }
+      // Initialize gameConfig with the proper structure
+      window.gameConfig = {
+        physics: {
+          lov: {
+            enabled: true,
+            maxSpeed: 5,
+            gravity: 9.8,
+            airResistance: 0.99,
+            bounceFactor: 0.8
+          }
+        },
+        difficulty: 'normal'
+      };
       
       const audioManager = audioManagerRef.current;
       const audioContext = audioManager.getAudioContext();
@@ -188,10 +191,7 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
       </GameCanvas>
       
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
-      <BeatVisualizer 
-        beats={visibleBeats} 
-        currentTime={audioManagerRef.current.getCurrentTime() * 1000} 
-      />
+      <BeatVisualizer />
     </div>
   );
 };

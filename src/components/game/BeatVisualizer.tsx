@@ -2,7 +2,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './BeatVisualizer.css';
 
-const BeatVisualizer: React.FC = () => {
+interface BeatVisualizerProps {
+  beats?: any[];
+  currentTime?: number;
+}
+
+const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(false);
   
@@ -29,7 +34,7 @@ const BeatVisualizer: React.FC = () => {
       setIsActive(true);
       
       // Generate beat circles at regular intervals
-      const beatGenerator = setInterval(() => {
+      const beatGenerator: NodeJS.Timeout = setInterval(() => {
         if (!isActive || !containerRef.current) return;
         
         // Create a beat circle

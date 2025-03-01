@@ -1,7 +1,7 @@
 
 // Global types for the game
 interface Window {
-  gameConfig?: {
+  gameConfig: {
     physics: {
       lov: {
         enabled: boolean;
@@ -9,11 +9,13 @@ interface Window {
         airResistance: number;
         bounceFactor: number;
         maxSpeed?: number;
+        bounceHeight?: number;
       }
     },
     difficulty: string;
   };
   gameScene?: THREE.Scene;
+  gameCamera?: THREE.Camera;
   gameBass?: THREE.Object3D;
   gameState?: {
     score: number;
