@@ -5,9 +5,12 @@ interface DebugPanelProps {
   // No props needed
 }
 
+// Define the log level type to match the expected values
+type LogLevel = "info" | "warn" | "error";
+
 const DebugPanel: React.FC<DebugPanelProps> = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [logs, setLogs] = useState<Array<{ level: string; message: string; timestamp: Date }>>([]);
+  const [logs, setLogs] = useState<Array<{ level: LogLevel; message: string; timestamp: Date }>>([]);
   
   useEffect(() => {
     // Initialize debug logs array if it doesn't exist
@@ -67,8 +70,8 @@ const DebugPanel: React.FC<DebugPanelProps> = () => {
     };
   }, []);
   
-  // Add log to global array
-  const addLog = (level: string, message: string) => {
+  // Add log to global array with typed level parameter
+  const addLog = (level: LogLevel, message: string) => {
     if (!window._debugLogs) {
       window._debugLogs = [];
     }

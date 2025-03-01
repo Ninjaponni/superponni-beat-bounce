@@ -82,6 +82,24 @@ export class AudioManager {
     }
   }
   
+  // Play a hit sound based on quality (for useGameBeatHandler.ts)
+  public playHitSound(quality: string): void {
+    switch (quality) {
+      case 'perfect':
+        this.playSound('perfect', 1.0);
+        break;
+      case 'good':
+        this.playSound('good', 0.8);
+        break;
+      case 'ok':
+        this.playSound('ok', 0.6);
+        break;
+      default:
+        console.warn(`Unknown hit quality: ${quality}`);
+        break;
+    }
+  }
+  
   // Play music (with loop)
   public playMusic(name: string, volume: number = 0.7): void {
     try {
@@ -113,12 +131,47 @@ export class AudioManager {
     }
   }
   
+  // Play game over sound effects (used in GameLogic)
+  public playGameOverEffects(): void {
+    // Stop music with a fade out effect
+    if (this.music) {
+      // Gradual volume reduction
+      const fadeOutStep = 0.05;
+      const fadeInterval = 100;
+      const fadeOutMusic = () => {
+        if (this.music && this.music.volume > fadeOutStep) {
+          this.music.volume -= fadeOutStep;
+          setTimeout(fadeOutMusic, fadeInterval);
+        } else if (this.music) {
+          this.music.pause();
+          this.music = null;
+        }
+      };
+      fadeOutMusic();
+    }
+    
+    // Play a specific game over sound if available
+    this.playSound('miss', 1.0);
+  }
+  
   // Stop the music
   public stopMusic(): void {
     if (this.music) {
       this.music.pause();
       this.music = null;
     }
+  }
+  
+  // Get the audio context
+  public getAudioContext(): AudioContext | null {
+    return this.audioContext;
+  }
+  
+  // Register beat callback function
+  public onBeat(callback: (time: number) => void): void {
+    // This is a placeholder for actual beat detection
+    // In a real implementation, this would analyze the audio and fire the callback on beats
+    console.log("Beat detection registered");
   }
   
   // Get the current playback time
