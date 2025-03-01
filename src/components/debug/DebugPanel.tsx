@@ -14,8 +14,12 @@ export const DebugPanel: React.FC = () => {
   useEffect(() => {
     if (!isOpen) return;
     
-    const storedLogs = window._debugLogs || [];
-    setLogs(storedLogs);
+    // Initialize _debugLogs if it doesn't exist
+    if (!window._debugLogs) {
+      window._debugLogs = [];
+    }
+    
+    setLogs(window._debugLogs);
     
     // Setup log interceptor
     const originalConsole = {
