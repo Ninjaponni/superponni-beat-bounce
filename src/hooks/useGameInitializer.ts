@@ -72,10 +72,7 @@ export function useGameInitializer({
         
         // Oppretter bass-model direkte
         const bassModel = createBassModel();
-        if (bassRef.current) {
-          bassRef.current = bassModel;
-        }
-        
+        // Bruk setState for å oppdatere bassRef
         setLoading(false);
         
         const countdownInterval = setInterval(() => {
