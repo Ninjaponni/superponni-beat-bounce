@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -11,6 +10,8 @@ import ScoreDisplay from './ScoreDisplay';
 import Countdown from './Countdown';
 import Character from './Character';
 import { toast } from "sonner";
+import { BassController } from '@/utils/BassController';
+import { createBassModel } from '@/utils/createBassModel';
 
 interface GameProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
@@ -35,18 +36,18 @@ const Game = ({ onGameOver }: GameProps) => {
   const assetLoaderRef = useRef(new AssetLoader());
   const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM for "Vi e trøndera"
   const audioManagerRef = useRef(new AudioManager());
+  const bassControllerRef = useRef<BassController | null>(null);
   const gameTimeRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
+  const lastUpdateTimeRef = useRef(0);
+  const [bassControllerReady, setBassControllerReady] = useState(false);
   
-  // Initialize the game
   useEffect(() => {
     const initGame = async () => {
       try {
-        // Load audio first
         const audioManager = audioManagerRef.current;
         await audioManager.loadAllSounds();
         
-        // Load visual resources
         const assetLoader = assetLoaderRef.current;
         const loaded = await assetLoader.loadAll();
         
@@ -56,16 +57,13 @@ const Game = ({ onGameOver }: GameProps) => {
           return;
         }
         
-        // Get the character model
         const idleModel = assetLoader.getModel('idle');
         if (idleModel) {
           setCharacterModel(idleModel);
         }
         
-        // Set up animations
         const anims = new Map<string, THREE.AnimationClip>();
         
-        // Add all animations
         ['idle', 'kickLeft', 'kickRight', 'victory', 'defeat'].forEach(name => {
           const anim = assetLoader.getAnimation(name);
           if (anim) {
@@ -76,7 +74,19 @@ const Game = ({ onGameOver }: GameProps) => {
         setAnimations(anims);
         setLoading(false);
         
-        // Start countdown
+        const scene = new THREE.Scene();
+        const bassController = new BassController(scene);
+        
+        const bassModel = createBassModel();
+        bassController.setBassModel(bassModel);
+        
+        bassController.setOnGameOver(() => {
+          handleGameOver(false);
+        });
+        
+        bassControllerRef.current = bassController;
+        setBassControllerReady(true);
+        
         const countdownInterval = setInterval(() => {
           setCountdown(prev => {
             if (prev <= 1) {
@@ -93,7 +103,6 @@ const Game = ({ onGameOver }: GameProps) => {
           if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
           }
-          // Stopp all lyd når komponenten unmountes
           audioManagerRef.current.stopMusic();
         };
       } catch (error) {
@@ -106,7 +115,6 @@ const Game = ({ onGameOver }: GameProps) => {
   }, []);
   
   const startGame = () => {
-    // Start audio
     const audioManager = audioManagerRef.current;
     const audioContext = audioManager.getAudioContext();
     
@@ -115,21 +123,16 @@ const Game = ({ onGameOver }: GameProps) => {
       return;
     }
     
-    // Start rhythm engine
     const startTime = audioManager.getCurrentTime() * 1000;
     rhythmEngineRef.current.start(startTime);
     gameTimeRef.current = startTime;
     
-    // Start music
     audioManager.playMusic('music');
     
-    // Setup beat tracking
     audioManager.onBeat(time => {
-      // This can be used to synchronize game elements with the music beats
       console.log(`Beat at time: ${time}`);
     });
     
-    // Start game loop
     setGameStarted(true);
     requestAnimationFrame(gameLoop);
   };
@@ -140,20 +143,16 @@ const Game = ({ onGameOver }: GameProps) => {
     
     if (!audioContext) return;
     
-    // Update game time
     const currentTime = audioManager.getCurrentTime() * 1000;
     
-    // Update visible beats
     const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
     setVisibleBeats(visibleBeats);
     
-    // Check if game is over
     if (missCount >= 3) {
       handleGameOver(false);
       return;
     }
     
-    // Continue game loop
     animationFrameRef.current = requestAnimationFrame(gameLoop);
   };
   
@@ -161,7 +160,6 @@ const Game = ({ onGameOver }: GameProps) => {
     setGameOver(true);
     setIsVictory(victory);
     
-    // Play appropriate sound
     const audioManager = audioManagerRef.current;
     if (victory) {
       audioManager.playSound('victory');
@@ -169,13 +167,11 @@ const Game = ({ onGameOver }: GameProps) => {
       audioManager.playGameOverEffects();
     }
     
-    // Allow time for final animation before showing game over screen
     setTimeout(() => {
       onGameOver(score, perfectHits, maxCombo);
     }, 2000);
   };
   
-  // Handle key press
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!gameStarted) return;
@@ -191,15 +187,12 @@ const Game = ({ onGameOver }: GameProps) => {
       const currentTime = audioManager.getCurrentTime() * 1000;
       const result = rhythmEngineRef.current.checkPlayerInput(currentTime);
       
-      // Trigger character animation
-      setOnBeat(false); // Reset first to ensure useEffect triggers
+      setOnBeat(false);
       setTimeout(() => setOnBeat(true), 10);
       
       if (result.hit) {
-        // Play beat sound based on hit quality
         audioManager.playHitSound(result.score);
         
-        // Update score and combo
         if (result.score === 'perfect') {
           setScore(prev => prev + 100 * (1 + combo * 0.1));
           setCombo(prev => prev + 1);
@@ -211,15 +204,12 @@ const Game = ({ onGameOver }: GameProps) => {
           toast.success("Godt treff!", { duration: 500 });
         }
         
-        // Update max combo
         setMaxCombo(prev => Math.max(prev, combo + 1));
         
-        // Play special sound for combo milestones
         if (combo + 1 === 5 || combo + 1 === 10) {
           audioManager.playSound(combo + 1 === 10 ? 'victory' : 'perfect', 0.8);
         }
       } else {
-        // Miss
         setMissCount(prev => prev + 1);
         setCombo(0);
         audioManager.playSound('miss');
@@ -232,6 +222,13 @@ const Game = ({ onGameOver }: GameProps) => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [gameStarted, combo, score]);
+  
+  useEffect(() => {
+    if (gameStarted && bassControllerRef.current) {
+      bassControllerRef.current.start();
+      lastUpdateTimeRef.current = performance.now();
+    }
+  }, [gameStarted]);
   
   if (loading || countdown > 0) {
     return (
@@ -247,14 +244,12 @@ const Game = ({ onGameOver }: GameProps) => {
   
   return (
     <div className="relative w-full h-full">
-      {/* 3D Scene */}
       <Canvas className="absolute inset-0">
         <ambientLight intensity={0.5} />
         <directionalLight position={[10, 10, 5]} intensity={1} />
         <color attach="background" args={['#1a1a2e']} />
         <OrbitControls enabled={false} />
         
-        {/* Character */}
         {characterModel && (
           <Character 
             model={characterModel} 
@@ -265,14 +260,16 @@ const Game = ({ onGameOver }: GameProps) => {
           />
         )}
         
-        {/* Floor */}
+        {gameStarted && bassControllerReady && bassControllerRef.current && (
+          <primitive object={bassControllerRef.current.object3D} />
+        )}
+        
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.01, 0]} receiveShadow>
           <planeGeometry args={[20, 20]} />
           <meshStandardMaterial color="#4a6c6f" />
         </mesh>
       </Canvas>
       
-      {/* UI Elements */}
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
       <BeatVisualizer 
         beats={visibleBeats} 
