@@ -11,13 +11,19 @@ window.onerror = function(message, source, lineno, colno, error) {
     console.warn('Detected "lov" error, adding safety object');
     
     // Add safety net for common global objects
-    if (!window.hasOwnProperty('gameConfig')) window.gameConfig = {};
-    if (!window.gameConfig.hasOwnProperty('lov')) {
-      window.gameConfig.lov = {
-        enabled: true,
-        maxSpeed: 5,
-        bounceHeight: 2,
-        gravity: 9.8
+    if (!window.hasOwnProperty('gameConfig')) {
+      window.gameConfig = {
+        physics: {
+          lov: {
+            enabled: true,
+            maxSpeed: 5,
+            bounceHeight: 2,
+            gravity: 9.8,
+            airResistance: 0.99,
+            bounceFactor: 0.8
+          }
+        },
+        difficulty: 'normal'
       };
     }
   }
@@ -65,26 +71,5 @@ const installLovTracker = () => {
 
 // Call the function
 installLovTracker();
-
-// Declare global interface for TypeScript
-declare global {
-  interface Window {
-    gameConfig?: any;
-    gameScene?: THREE.Scene;
-    gameBass?: THREE.Object3D;
-    gameState?: {
-      score: number;
-      combo: number;
-      isPlaying: boolean;
-    };
-    gameAnimationFunctions?: Function[];
-    bassController?: any;
-    _debugLogs?: Array<{
-      level: 'info' | 'warn' | 'error';
-      message: string;
-      timestamp: Date;
-    }>;
-  }
-}
 
 createRoot(document.getElementById("root")!).render(<App />);

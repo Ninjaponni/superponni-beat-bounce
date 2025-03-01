@@ -22,7 +22,7 @@ interface Window {
   };
   gameAnimationFunctions?: Function[];
   bassController?: any;
-  beatGenerator?: number;
+  beatGenerator?: NodeJS.Timeout;
   checkHit?: () => { hit: boolean, quality: string };
   _debugLogs?: Array<{
     level: 'info' | 'warn' | 'error';
