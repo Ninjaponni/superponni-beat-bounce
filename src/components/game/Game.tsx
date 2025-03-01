@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -36,11 +37,10 @@ const Game = ({ onGameOver }: GameProps) => {
   const assetLoaderRef = useRef(new AssetLoader());
   const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM for "Vi e trøndera"
   const audioManagerRef = useRef(new AudioManager());
-  const bassControllerRef = useRef<BassController | null>(null);
+  const bassRef = useRef<THREE.Object3D | null>(null);
   const gameTimeRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateTimeRef = useRef(0);
-  const [bassControllerReady, setBassControllerReady] = useState(false);
   
   useEffect(() => {
     const initGame = async () => {
@@ -72,20 +72,12 @@ const Game = ({ onGameOver }: GameProps) => {
         });
         
         setAnimations(anims);
-        setLoading(false);
         
-        const scene = new THREE.Scene();
-        const bassController = new BassController(scene);
-        
+        // Oppretter bass-model direkte
         const bassModel = createBassModel();
-        bassController.setBassModel(bassModel);
+        bassRef.current = bassModel;
         
-        bassController.setOnGameOver(() => {
-          handleGameOver(false);
-        });
-        
-        bassControllerRef.current = bassController;
-        setBassControllerReady(true);
+        setLoading(false);
         
         const countdownInterval = setInterval(() => {
           setCountdown(prev => {
@@ -223,13 +215,6 @@ const Game = ({ onGameOver }: GameProps) => {
     };
   }, [gameStarted, combo, score]);
   
-  useEffect(() => {
-    if (gameStarted && bassControllerRef.current) {
-      bassControllerRef.current.start();
-      lastUpdateTimeRef.current = performance.now();
-    }
-  }, [gameStarted]);
-  
   if (loading || countdown > 0) {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
@@ -241,6 +226,13 @@ const Game = ({ onGameOver }: GameProps) => {
       </div>
     );
   }
+  
+  // Enkel Bass-komponent for Three.js scene
+  const Bass = () => {
+    if (!bassRef.current) return null;
+    
+    return <primitive object={bassRef.current} position={[0, 0, 0]} />;
+  };
   
   return (
     <div className="relative w-full h-full">
@@ -260,9 +252,7 @@ const Game = ({ onGameOver }: GameProps) => {
           />
         )}
         
-        {gameStarted && bassControllerReady && bassControllerRef.current && (
-          <primitive object={bassControllerRef.current.object3D} />
-        )}
+        {gameStarted && bassRef.current && <Bass />}
         
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.01, 0]} receiveShadow>
           <planeGeometry args={[20, 20]} />
