@@ -9,33 +9,42 @@ export interface Beat {
 
 export class RhythmEngine {
   private bpm: number;
-  private beatInterval: number; // ms mellom hver beat
+  private beatInterval: number; // ms between each beat
   private nextBeatTime: number = 0;
   private beats: Beat[] = [];
   private startTime: number = 0;
+  private audioStartDelay: number = 3000; // 3 seconds countdown before first beat
   
   constructor(bpm: number = 130) {
     this.bpm = bpm;
-    this.beatInterval = 60000 / bpm; // ms mellom hver beat
+    this.beatInterval = 60000 / bpm; // ms between each beat
   }
   
   start(startTime: number) {
     this.startTime = startTime;
-    this.nextBeatTime = startTime;
+    this.nextBeatTime = startTime + this.audioStartDelay; // Add delay for countdown
     
-    // Generer beats basert på sangen
+    // Generate beats based on the song
     this.generateBeats();
   }
   
-  // Generer beats basert på sangen
+  // Generate beats based on the song
   private generateBeats() {
     this.beats = [];
     
-    // Her ville du legge inn spesifikke beats basert på låten
-    // For eksempel:
-    const beatCount = 100; // antall beats i låten
+    // For now, we'll create simple evenly-spaced beats
+    // In a real implementation, these would be mapped to the actual song structure
+    const beatCount = 100; // number of beats in the song
     
-    for (let i = 0; i < beatCount; i++) {
+    // Create the first beat with a longer visibility for player to understand
+    this.beats.push({
+      time: this.nextBeatTime,
+      hit: false,
+      score: ''
+    });
+    
+    // Generate remaining beats
+    for (let i = 1; i < beatCount; i++) {
       this.beats.push({
         time: this.nextBeatTime + (i * this.beatInterval),
         hit: false,
@@ -44,20 +53,20 @@ export class RhythmEngine {
     }
   }
   
-  // Sjekk et trykk fra spilleren
+  // Check player input
   checkPlayerInput(currentTime: number): { hit: boolean, score: BeatScore, beatIndex: number } {
-    // Finn nærmeste beat
+    // Find closest beat
     let closestBeatIndex = -1;
     let closestBeatDiff = Number.MAX_VALUE;
     
     for (let i = 0; i < this.beats.length; i++) {
       const beat = this.beats[i];
       
-      // Hopp over beats som allerede er truffet
+      // Skip beats that are already hit
       if (beat.hit) continue;
       
-      // Sjekk kun beats som er innenfor et rimelig tidsvindu
-      // (f.eks. 500ms før og etter)
+      // Only check beats within a reasonable time window
+      // (e.g., 500ms before and after)
       const timeDiff = Math.abs(currentTime - beat.time);
       if (timeDiff < 500 && timeDiff < closestBeatDiff) {
         closestBeatDiff = timeDiff;
@@ -65,24 +74,24 @@ export class RhythmEngine {
       }
     }
     
-    // Hvis ingen beat funnet innenfor tidsvinduet
+    // If no beat found within the time window
     if (closestBeatIndex === -1) {
       return { hit: false, score: 'miss', beatIndex: -1 };
     }
     
-    // Kalkuler score basert på timing
+    // Calculate score based on timing
     let score: BeatScore = 'miss';
     if (closestBeatDiff < 50) {
       score = 'perfect';
     } else if (closestBeatDiff < 150) {
       score = 'good';
     } else if (closestBeatDiff < 300) {
-      score = 'good';
+      score = 'good'; // Changed from 'ok' to match our score types
     } else {
       score = 'miss';
     }
     
-    // Merk beatet som truffet hvis det ikke er miss
+    // Mark the beat as hit if it's not a miss
     if (score !== 'miss') {
       this.beats[closestBeatIndex].hit = true;
       this.beats[closestBeatIndex].score = score;
@@ -91,8 +100,8 @@ export class RhythmEngine {
     return { hit: score !== 'miss', score, beatIndex: closestBeatIndex };
   }
   
-  // Hent beats for rendering
-  getVisibleBeats(currentTime: number, visibilityWindow: number = 2000) {
+  // Get beats for rendering
+  getVisibleBeats(currentTime: number, visibilityWindow: number = 2000): Beat[] {
     return this.beats.filter(beat => {
       const timeDiff = beat.time - currentTime;
       return timeDiff > -1000 && timeDiff < visibilityWindow;

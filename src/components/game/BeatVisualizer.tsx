@@ -1,5 +1,5 @@
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Beat } from '@/utils/RhythmEngine';
 
 interface BeatVisualizerProps {
@@ -10,28 +10,24 @@ interface BeatVisualizerProps {
 const BeatVisualizer = ({ beats, currentTime }: BeatVisualizerProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   
-  // Konstanter for visualisering
+  // Constants for visualization
   const containerWidth = 600; // px
   const beatWidth = 29; // px
   const outlineWidth = 77; // px
   const visibilityWindow = 2000; // ms
   
-  useEffect(() => {
-    // Når komponenten renderes første gang, sett opp containeren
-  }, []);
-  
-  // Beregner x-posisjon basert på timing
+  // Calculate beat position based on timing
   const calculateBeatPosition = (beatTime: number) => {
     const timeDiff = beatTime - currentTime;
-    // Konverter tidsdifferanse til posisjon
-    // Starter fra venstre og beveger seg mot høyre
+    // Convert time difference to position
+    // Starts from left and moves to right
     const progress = 1 - (timeDiff / visibilityWindow);
     return (containerWidth * progress) - (beatWidth / 2);
   };
   
-  // Beregn opacity basert på posisjon
+  // Calculate opacity based on position
   const calculateOpacity = (xPos: number) => {
-    // Maksimal opacity i midten, fade inn/ut på sidene
+    // Maximum opacity in the middle, fade in/out on sides
     const center = containerWidth / 2;
     const distance = Math.abs(xPos + beatWidth/2 - center);
     
@@ -43,31 +39,35 @@ const BeatVisualizer = ({ beats, currentTime }: BeatVisualizerProps) => {
   
   return (
     <div className="absolute bottom-[150px] left-1/2 transform -translate-x-1/2 h-[100px] w-[600px]">
-      {/* Treffsone (hvit outline) */}
+      {/* Target zone (white outline) */}
       <div 
         className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[77px] h-[77px] border-2 border-white rounded-full"
       />
       
-      {/* Beat sirkler */}
+      {/* Beat circles */}
       {beats.map((beat, index) => {
         const xPos = calculateBeatPosition(beat.time);
         const opacity = calculateOpacity(xPos);
         
-        // Bestem fargen basert på status
+        // Determine color based on status
         let bgColor = 'bg-white';
         if (beat.score === 'perfect') bgColor = 'bg-[#63AF30]';
         if (beat.score === 'good') bgColor = 'bg-yellow-500';
         if (beat.score === 'miss') bgColor = 'bg-[#E91F1F]';
         
+        // Only render visible beats
+        if (opacity <= 0) return null;
+        
         return (
           <div 
             key={index}
-            className={`absolute top-1/2 transform -translate-y-1/2 rounded-full ${bgColor} transition-colors`}
+            className={`absolute top-1/2 transform -translate-y-1/2 rounded-full ${bgColor} transition-colors duration-100`}
             style={{
               left: `${xPos}px`,
               width: '29px',
               height: '29px',
-              opacity: opacity
+              opacity: opacity,
+              transform: beat.hit ? 'translate(-50%, -50%) scale(1.3)' : 'translate(-50%, -50%) scale(1)'
             }}
           />
         );

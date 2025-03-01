@@ -1,13 +1,15 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { useFrame } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import * as THREE from 'three';
 import AssetLoader from '@/utils/AssetLoader';
 import RhythmEngine, { Beat } from '@/utils/RhythmEngine';
 import BeatVisualizer from './BeatVisualizer';
 import ScoreDisplay from './ScoreDisplay';
 import Countdown from './Countdown';
+import Character from './Character';
+import { toast } from "sonner";
 
 interface GameProps {
   onGameOver: (score: number) => void;
@@ -21,6 +23,11 @@ const Game = ({ onGameOver }: GameProps) => {
   const [combo, setCombo] = useState(0);
   const [missCount, setMissCount] = useState(0);
   const [visibleBeats, setVisibleBeats] = useState<Beat[]>([]);
+  const [characterModel, setCharacterModel] = useState<THREE.Object3D | null>(null);
+  const [animations, setAnimations] = useState<Map<string, THREE.AnimationClip>>(new Map());
+  const [onBeat, setOnBeat] = useState(false);
+  const [gameOver, setGameOver] = useState(false);
+  const [isVictory, setIsVictory] = useState(false);
   
   const assetLoaderRef = useRef(new AssetLoader());
   const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM
@@ -28,41 +35,65 @@ const Game = ({ onGameOver }: GameProps) => {
   const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
-  // Initialiser spillet
+  // Initialize the game
   useEffect(() => {
     const initGame = async () => {
-      // Sett opp lydkontekst
-      audioContextRef.current = new AudioContext();
-      
-      // Last ressurser
-      const assetLoader = assetLoaderRef.current;
-      const loaded = await assetLoader.loadAll();
-      
-      if (!loaded) {
-        console.error('Kunne ikke laste alle ressurser');
-        return;
-      }
-      
-      setLoading(false);
-      
-      // Start nedtelling
-      const countdownInterval = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(countdownInterval);
-            startGame();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-      
-      return () => {
-        clearInterval(countdownInterval);
-        if (animationFrameRef.current) {
-          cancelAnimationFrame(animationFrameRef.current);
+      try {
+        // Set up audio context
+        audioContextRef.current = new AudioContext();
+        
+        // Load resources
+        const assetLoader = assetLoaderRef.current;
+        const loaded = await assetLoader.loadAll();
+        
+        if (!loaded) {
+          console.error('Kunne ikke laste alle ressurser');
+          toast.error("Kunne ikke laste alle ressurser. Vennligst prøv igjen.");
+          return;
         }
-      };
+        
+        // Get the character model
+        const idleModel = assetLoader.getModel('idle');
+        if (idleModel) {
+          setCharacterModel(idleModel);
+        }
+        
+        // Set up animations
+        const anims = new Map<string, THREE.AnimationClip>();
+        
+        // Add all animations
+        ['idle', 'kickLeft', 'kickRight', 'victory', 'defeat'].forEach(name => {
+          const anim = assetLoader.getAnimation(name);
+          if (anim) {
+            anims.set(name, anim);
+          }
+        });
+        
+        setAnimations(anims);
+        setLoading(false);
+        
+        // Start countdown
+        const countdownInterval = setInterval(() => {
+          setCountdown(prev => {
+            if (prev <= 1) {
+              clearInterval(countdownInterval);
+              startGame();
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+        
+        return () => {
+          clearInterval(countdownInterval);
+          if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+          }
+        };
+      } catch (error) {
+        console.error('Error initializing game:', error);
+        toast.error("Feil under initialisering av spillet. Vennligst prøv igjen.");
+      }
     };
     
     initGame();
@@ -71,12 +102,12 @@ const Game = ({ onGameOver }: GameProps) => {
   const startGame = () => {
     if (!audioContextRef.current) return;
     
-    // Start rytmemotor
+    // Start rhythm engine
     const startTime = audioContextRef.current.currentTime * 1000;
     rhythmEngineRef.current.start(startTime);
     gameTimeRef.current = startTime;
     
-    // Start gameloop
+    // Start game loop
     setGameStarted(true);
     requestAnimationFrame(gameLoop);
   };
@@ -84,51 +115,70 @@ const Game = ({ onGameOver }: GameProps) => {
   const gameLoop = () => {
     if (!audioContextRef.current) return;
     
-    // Oppdater spilltid
+    // Update game time
     const currentTime = audioContextRef.current.currentTime * 1000;
     
-    // Oppdater synlige beats
+    // Update visible beats
     const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
     setVisibleBeats(visibleBeats);
     
-    // Sjekk om spillet er over
+    // Check if game is over
     if (missCount >= 3) {
-      onGameOver(score);
+      handleGameOver(false);
       return;
     }
     
-    // Fortsett spilløkke
+    // Continue game loop
     animationFrameRef.current = requestAnimationFrame(gameLoop);
   };
   
-  // Håndter tastetrykk
+  const handleGameOver = (victory: boolean) => {
+    setGameOver(true);
+    setIsVictory(victory);
+    
+    // Allow time for final animation before showing game over screen
+    setTimeout(() => {
+      onGameOver(score);
+    }, 2000);
+  };
+  
+  // Handle key press
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (!gameStarted || !audioContextRef.current) return;
       
       if (event.code === 'Space') {
         event.preventDefault();
+        handleBeat();
+      }
+    };
+    
+    const handleBeat = () => {
+      const currentTime = audioContextRef.current!.currentTime * 1000;
+      const result = rhythmEngineRef.current.checkPlayerInput(currentTime);
+      
+      // Trigger character animation
+      setOnBeat(false); // Reset first to ensure useEffect triggers
+      setTimeout(() => setOnBeat(true), 10);
+      
+      if (result.hit) {
+        // Play beat sound (would be implemented in a real audio system)
         
-        const currentTime = audioContextRef.current.currentTime * 1000;
-        const result = rhythmEngineRef.current.checkPlayerInput(currentTime);
-        
-        if (result.hit) {
-          // Spark-animasjon vil trigges i Character-komponenten
-          if (result.score === 'perfect') {
-            setScore(prev => prev + 100 * (1 + combo * 0.1));
-            setCombo(prev => prev + 1);
-            // Spill perfekt lydeffekt
-          } else if (result.score === 'good') {
-            setScore(prev => prev + 50 * (1 + combo * 0.05));
-            setCombo(prev => prev + 1);
-            // Spill god lydeffekt
-          }
-        } else {
-          // Bom
-          setMissCount(prev => prev + 1);
-          setCombo(0);
-          // Spill bom-lydeffekt
+        // Update score and combo
+        if (result.score === 'perfect') {
+          setScore(prev => prev + 100 * (1 + combo * 0.1));
+          setCombo(prev => prev + 1);
+          toast.success("Perfekt treff!", { duration: 500 });
+        } else if (result.score === 'good') {
+          setScore(prev => prev + 50 * (1 + combo * 0.05));
+          setCombo(prev => prev + 1);
+          toast.success("Godt treff!", { duration: 500 });
         }
+      } else {
+        // Miss
+        setMissCount(prev => prev + 1);
+        setCombo(0);
+        toast.error("Bom!", { duration: 500 });
       }
     };
     
@@ -136,7 +186,7 @@ const Game = ({ onGameOver }: GameProps) => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [gameStarted, combo, onGameOver, score]);
+  }, [gameStarted, combo, score]);
   
   if (loading || countdown > 0) {
     return (
@@ -158,10 +208,26 @@ const Game = ({ onGameOver }: GameProps) => {
         <directionalLight position={[10, 10, 5]} intensity={1} />
         <color attach="background" args={['#1a1a2e']} />
         <OrbitControls enabled={false} />
-        {/* Her vil vi senere legge til karakteren og bassen */}
+        
+        {/* Character */}
+        {characterModel && (
+          <Character 
+            model={characterModel} 
+            animations={animations} 
+            onBeat={onBeat} 
+            gameOver={gameOver}
+            isVictory={isVictory}
+          />
+        )}
+        
+        {/* Floor */}
+        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.01, 0]} receiveShadow>
+          <planeGeometry args={[20, 20]} />
+          <meshStandardMaterial color="#4a6c6f" />
+        </mesh>
       </Canvas>
       
-      {/* UI Elementer */}
+      {/* UI Elements */}
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
       <BeatVisualizer 
         beats={visibleBeats} 
