@@ -7,9 +7,19 @@ import { toast } from "sonner";
 
 export type GameState = 'start' | 'playing' | 'gameover';
 
+interface GameStats {
+  score: number;
+  perfectHits: number;
+  maxCombo: number;
+}
+
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>('start');
-  const [score, setScore] = useState(0);
+  const [gameStats, setGameStats] = useState<GameStats>({
+    score: 0,
+    perfectHits: 0,
+    maxCombo: 0
+  });
   const [transitioning, setTransitioning] = useState(false);
   
   const startGame = () => {
@@ -19,13 +29,21 @@ const Index = () => {
     // Add a small delay for better user experience 
     setTimeout(() => {
       setGameState('playing');
-      setScore(0);
+      setGameStats({
+        score: 0,
+        perfectHits: 0,
+        maxCombo: 0
+      });
       setTransitioning(false);
     }, 500);
   };
 
-  const endGame = (finalScore: number) => {
-    setScore(finalScore);
+  const endGame = (finalScore: number, perfectHits: number = 0, maxCombo: number = 0) => {
+    setGameStats({
+      score: finalScore,
+      perfectHits,
+      maxCombo
+    });
     setTransitioning(true);
     
     // Add a delay to let any final animations complete
@@ -75,7 +93,12 @@ const Index = () => {
       )}
       
       {gameState === 'gameover' && (
-        <GameOverScreen score={score} onRestart={restartGame} />
+        <GameOverScreen 
+          score={gameStats.score} 
+          onRestart={restartGame}
+          perfectHits={gameStats.perfectHits}
+          maxCombo={gameStats.maxCombo}
+        />
       )}
     </div>
   );

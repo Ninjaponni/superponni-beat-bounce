@@ -5,6 +5,7 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import AssetLoader from '@/utils/AssetLoader';
 import RhythmEngine, { Beat } from '@/utils/RhythmEngine';
+import AudioManager from '@/utils/AudioManager';
 import BeatVisualizer from './BeatVisualizer';
 import ScoreDisplay from './ScoreDisplay';
 import Countdown from './Countdown';
@@ -28,21 +29,24 @@ const Game = ({ onGameOver }: GameProps) => {
   const [onBeat, setOnBeat] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [isVictory, setIsVictory] = useState(false);
+  const [maxCombo, setMaxCombo] = useState(0);
+  const [perfectHits, setPerfectHits] = useState(0);
   
   const assetLoaderRef = useRef(new AssetLoader());
-  const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM
+  const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM for "Vi e trøndera"
+  const audioManagerRef = useRef(new AudioManager());
   const gameTimeRef = useRef(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   
   // Initialize the game
   useEffect(() => {
     const initGame = async () => {
       try {
-        // Set up audio context
-        audioContextRef.current = new AudioContext();
+        // Load audio first
+        const audioManager = audioManagerRef.current;
+        await audioManager.loadAllSounds();
         
-        // Load resources
+        // Load visual resources
         const assetLoader = assetLoaderRef.current;
         const loaded = await assetLoader.loadAll();
         
@@ -89,6 +93,8 @@ const Game = ({ onGameOver }: GameProps) => {
           if (animationFrameRef.current) {
             cancelAnimationFrame(animationFrameRef.current);
           }
+          // Stopp all lyd når komponenten unmountes
+          audioManagerRef.current.stopMusic();
         };
       } catch (error) {
         console.error('Error initializing game:', error);
@@ -100,12 +106,22 @@ const Game = ({ onGameOver }: GameProps) => {
   }, []);
   
   const startGame = () => {
-    if (!audioContextRef.current) return;
+    // Start audio
+    const audioManager = audioManagerRef.current;
+    const audioContext = audioManager.getAudioContext();
+    
+    if (!audioContext) {
+      toast.error("Kunne ikke starte lydkontekst. Sjekk at nettleseren din støtter Web Audio API.");
+      return;
+    }
     
     // Start rhythm engine
-    const startTime = audioContextRef.current.currentTime * 1000;
+    const startTime = audioManager.getCurrentTime() * 1000;
     rhythmEngineRef.current.start(startTime);
     gameTimeRef.current = startTime;
+    
+    // Start music
+    audioManager.playMusic('music');
     
     // Start game loop
     setGameStarted(true);
@@ -113,10 +129,13 @@ const Game = ({ onGameOver }: GameProps) => {
   };
   
   const gameLoop = () => {
-    if (!audioContextRef.current) return;
+    const audioManager = audioManagerRef.current;
+    const audioContext = audioManager.getAudioContext();
+    
+    if (!audioContext) return;
     
     // Update game time
-    const currentTime = audioContextRef.current.currentTime * 1000;
+    const currentTime = audioManager.getCurrentTime() * 1000;
     
     // Update visible beats
     const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
@@ -136,6 +155,14 @@ const Game = ({ onGameOver }: GameProps) => {
     setGameOver(true);
     setIsVictory(victory);
     
+    // Play appropriate sound
+    const audioManager = audioManagerRef.current;
+    if (victory) {
+      audioManager.playSound('victory');
+    } else {
+      audioManager.playGameOverEffects();
+    }
+    
     // Allow time for final animation before showing game over screen
     setTimeout(() => {
       onGameOver(score);
@@ -145,7 +172,7 @@ const Game = ({ onGameOver }: GameProps) => {
   // Handle key press
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (!gameStarted || !audioContextRef.current) return;
+      if (!gameStarted) return;
       
       if (event.code === 'Space') {
         event.preventDefault();
@@ -154,7 +181,8 @@ const Game = ({ onGameOver }: GameProps) => {
     };
     
     const handleBeat = () => {
-      const currentTime = audioContextRef.current!.currentTime * 1000;
+      const audioManager = audioManagerRef.current;
+      const currentTime = audioManager.getCurrentTime() * 1000;
       const result = rhythmEngineRef.current.checkPlayerInput(currentTime);
       
       // Trigger character animation
@@ -162,22 +190,33 @@ const Game = ({ onGameOver }: GameProps) => {
       setTimeout(() => setOnBeat(true), 10);
       
       if (result.hit) {
-        // Play beat sound (would be implemented in a real audio system)
+        // Play beat sound based on hit quality
+        audioManager.playHitSound(result.score);
         
         // Update score and combo
         if (result.score === 'perfect') {
           setScore(prev => prev + 100 * (1 + combo * 0.1));
           setCombo(prev => prev + 1);
+          setPerfectHits(prev => prev + 1);
           toast.success("Perfekt treff!", { duration: 500 });
         } else if (result.score === 'good') {
           setScore(prev => prev + 50 * (1 + combo * 0.05));
           setCombo(prev => prev + 1);
           toast.success("Godt treff!", { duration: 500 });
         }
+        
+        // Update max combo
+        setMaxCombo(prev => Math.max(prev, combo + 1));
+        
+        // Play special sound for combo milestones
+        if (combo + 1 === 5 || combo + 1 === 10) {
+          audioManager.playSound(combo + 1 === 10 ? 'victory' : 'perfect', 0.8);
+        }
       } else {
         // Miss
         setMissCount(prev => prev + 1);
         setCombo(0);
+        audioManager.playSound('miss');
         toast.error("Bom!", { duration: 500 });
       }
     };
@@ -231,7 +270,7 @@ const Game = ({ onGameOver }: GameProps) => {
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
       <BeatVisualizer 
         beats={visibleBeats} 
-        currentTime={audioContextRef.current?.currentTime ?? 0 * 1000} 
+        currentTime={audioManagerRef.current.getCurrentTime() * 1000} 
       />
     </div>
   );

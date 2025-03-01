@@ -1,61 +1,52 @@
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useState } from 'react';
+import React from 'react';
 
 interface GameOverScreenProps {
   score: number;
   onRestart: () => void;
+  perfectHits?: number;
+  maxCombo?: number;
 }
 
-const GameOverScreen = ({ score, onRestart }: GameOverScreenProps) => {
-  const [playerName, setPlayerName] = useState('');
-
-  const handleSubmitScore = () => {
-    // TODO: Her vil vi senere implementere innsending av score til Supabase
-    console.log(`Submitting score: ${score} for player: ${playerName}`);
-    onRestart();
-  };
-
+const GameOverScreen: React.FC<GameOverScreenProps> = ({ 
+  score, 
+  onRestart, 
+  perfectHits = 0, 
+  maxCombo = 0 
+}) => {
   return (
-    <div className="absolute inset-0 flex items-center justify-center z-10">
-      <Card className="w-[350px] bg-black/80 text-white border-gray-700">
-        <CardHeader>
-          <CardTitle className="text-2xl text-center text-red-500">Game Over</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-center text-xl">Din poengsum: {score}</p>
-          
-          <div className="space-y-2">
-            <Label htmlFor="name">Ditt navn</Label>
-            <Input 
-              id="name" 
-              placeholder="Skriv navnet ditt" 
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              className="bg-gray-800 border-gray-700"
-            />
+    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-white">
+      <h1 className="text-4xl font-bold mb-8">Game Over</h1>
+      
+      <div className="bg-slate-800 p-8 rounded-lg shadow-lg mb-8 w-full max-w-md">
+        <h2 className="text-2xl font-semibold mb-6 text-center">Din score</h2>
+        
+        <div className="space-y-4">
+          <div className="flex justify-between border-b border-slate-600 pb-2">
+            <span className="text-slate-300">Poeng:</span>
+            <span className="text-xl font-bold">{score}</span>
           </div>
-        </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button 
-            onClick={onRestart}
-            variant="outline"
-            className="text-white border-gray-700 hover:bg-gray-700"
-          >
-            Avbryt
-          </Button>
-          <Button 
-            onClick={handleSubmitScore}
-            disabled={!playerName.trim()}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            Lagre Poeng
-          </Button>
-        </CardFooter>
-      </Card>
+          
+          <div className="flex justify-between border-b border-slate-600 pb-2">
+            <span className="text-slate-300">Perfekte treff:</span>
+            <span className="text-green-400">{perfectHits}</span>
+          </div>
+          
+          <div className="flex justify-between pb-2">
+            <span className="text-slate-300">Lengste combo:</span>
+            <span className="text-yellow-400">{maxCombo}x</span>
+          </div>
+        </div>
+      </div>
+      
+      <button
+        onClick={onRestart}
+        className="bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-full transition duration-200 text-lg"
+      >
+        Spill igjen
+      </button>
+      
+      <p className="mt-4 text-sm text-gray-400">Trykk 'R' for å spille på nytt</p>
     </div>
   );
 };
