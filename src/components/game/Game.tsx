@@ -1,7 +1,9 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import GameCanvas from './GameCanvas';
 import { Button } from "@/components/ui/button";
+import Bass from './Bass';
+import DebugPanel from '@/components/debug/DebugPanel';
 
 interface GameProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
@@ -11,6 +13,10 @@ const Game = ({ onGameOver }: GameProps) => {
   const [gameState, setGameState] = useState<'start' | 'countdown' | 'playing' | 'gameover'>('start');
   const [countdownNumber, setCountdownNumber] = useState(3);
   const [score, setScore] = useState(0);
+  const [loadedComponents, setLoadedComponents] = useState({
+    bass: false,
+    beatVisualizer: false
+  });
   
   // Simple start game function
   const startGame = () => {
@@ -25,10 +31,58 @@ const Game = ({ onGameOver }: GameProps) => {
         setCountdownNumber(1);
         setTimeout(() => {
           console.log("Countdown finished, starting game");
-          setGameState('playing');
+          handleCountdownComplete();
         }, 1000);
       }, 1000);
     }, 1000);
+  };
+  
+  // Handle countdown completion
+  const handleCountdownComplete = () => {
+    try {
+      console.log('Countdown complete, starting game');
+      
+      // Create global animation functions array
+      window.gameAnimationFunctions = [];
+      
+      // Initialize game state
+      window.gameState = {
+        score: 0,
+        combo: 0,
+        isPlaying: true
+      };
+      
+      // Create global config with 'lov' property
+      window.gameConfig = {
+        physics: {
+          lov: {
+            enabled: true,
+            gravity: 9.8,
+            airResistance: 0.99,
+            bounceFactor: 0.8
+          }
+        },
+        difficulty: 'normal'
+      };
+      
+      // Start the game
+      setGameState('playing');
+      
+      // Load components gradually
+      setTimeout(() => {
+        console.log("Loading Bass component");
+        setLoadedComponents(prev => ({ ...prev, bass: true }));
+        
+        setTimeout(() => {
+          console.log("Loading BeatVisualizer component");
+          setLoadedComponents(prev => ({ ...prev, beatVisualizer: true }));
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error starting game:", error);
+      // Continue to playing state even if there's an error
+      setGameState('playing');
+    }
   };
   
   // Handle game over
@@ -41,12 +95,32 @@ const Game = ({ onGameOver }: GameProps) => {
   const handleRestart = () => {
     setGameState('start');
     setScore(0);
+    setLoadedComponents({
+      bass: false,
+      beatVisualizer: false
+    });
   };
+
+  // Update score from window.gameState
+  useEffect(() => {
+    if (gameState === 'playing' && window.gameState) {
+      const scoreUpdateInterval = setInterval(() => {
+        if (window.gameState) {
+          setScore(window.gameState.score);
+        }
+      }, 100);
+      
+      return () => clearInterval(scoreUpdateInterval);
+    }
+  }, [gameState]);
 
   return (
     <div className="game-container relative w-screen h-screen overflow-hidden">
       {/* GameCanvas is always rendered */}
-      <GameCanvas gameState={gameState} />
+      <GameCanvas gameState={gameState}>
+        {/* Conditionally render Bass component */}
+        {gameState === 'playing' && loadedComponents.bass && <Bass />}
+      </GameCanvas>
       
       {/* UI overlays based on game state */}
       {gameState === 'start' && (
@@ -72,6 +146,11 @@ const Game = ({ onGameOver }: GameProps) => {
           <div className="score m-4 p-3 bg-black/50 text-white rounded text-xl">
             Score: {score}
           </div>
+          {!loadedComponents.beatVisualizer && (
+            <div className="loading absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/50 text-white p-4 rounded text-lg">
+              Loading game components...
+            </div>
+          )}
           <div className="instructions absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-black/50 text-white p-3 rounded text-lg">
             Trykk på mellomrom for å sparke bassen
           </div>
@@ -90,6 +169,9 @@ const Game = ({ onGameOver }: GameProps) => {
           </Button>
         </div>
       )}
+      
+      {/* Always render DebugPanel */}
+      <DebugPanel />
     </div>
   );
 };
