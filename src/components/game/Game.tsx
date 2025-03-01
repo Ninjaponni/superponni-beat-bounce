@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import Bass from './Bass';
 import DebugPanel from '@/components/debug/DebugPanel';
 import BeatVisualizer from './BeatVisualizer';
+import { toast } from "sonner";
+import AudioManager from '@/utils/AudioManager';
 
 interface GameProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
@@ -18,6 +20,33 @@ const Game = ({ onGameOver }: GameProps) => {
     bass: false,
     beatVisualizer: false
   });
+  const [showInstructions, setShowInstructions] = useState(false);
+  
+  // Initialize audio when component mounts
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        const audioManager = AudioManager.getInstance();
+        
+        // Preload audio files
+        await Promise.all([
+          audioManager.loadSound('perfect', 'audio/perfect.wav'),
+          audioManager.loadSound('good', 'audio/good.wav'),
+          audioManager.loadSound('ok', 'audio/ok.wav'),
+          audioManager.loadSound('miss', 'audio/miss.wav')
+        ]);
+        
+        // Make AudioManager globally accessible
+        (window as any).AudioManager = { getInstance: () => audioManager };
+        
+        console.log("Audio successfully initialized");
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    };
+    
+    initAudio();
+  }, []);
   
   // Simple start game function
   const startGame = () => {
@@ -68,6 +97,12 @@ const Game = ({ onGameOver }: GameProps) => {
       
       // Start the game
       setGameState('playing');
+      setShowInstructions(true);
+      
+      // Hide instructions after 5 seconds
+      setTimeout(() => {
+        setShowInstructions(false);
+      }, 5000);
       
       // Load components gradually
       setTimeout(() => {
@@ -77,6 +112,14 @@ const Game = ({ onGameOver }: GameProps) => {
         setTimeout(() => {
           console.log("Loading BeatVisualizer component");
           setLoadedComponents(prev => ({ ...prev, beatVisualizer: true }));
+          
+          // Start background music
+          try {
+            const audioManager = AudioManager.getInstance();
+            audioManager.playMusic('audio/vi_e_trondera.mp3', 0.7);
+          } catch (error) {
+            console.error("Failed to start music:", error);
+          }
         }, 500);
       }, 500);
     } catch (error) {
@@ -89,6 +132,15 @@ const Game = ({ onGameOver }: GameProps) => {
   // Handle game over
   const handleGameOver = () => {
     setGameState('gameover');
+    
+    // Stop music if playing
+    try {
+      const audioManager = AudioManager.getInstance();
+      audioManager.stopMusic();
+    } catch (error) {
+      console.error("Error stopping music:", error);
+    }
+    
     onGameOver(score);
   };
   
@@ -189,9 +241,11 @@ const Game = ({ onGameOver }: GameProps) => {
               Loading game components...
             </div>
           )}
-          <div className="instructions absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-black/50 text-white p-3 rounded text-lg">
-            Trykk på mellomrom for å sparke bassen
-          </div>
+          {showInstructions && (
+            <div className="instructions absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-black/50 text-white p-3 rounded text-lg">
+              Trykk på mellomrom når sirkelen er i midten
+            </div>
+          )}
         </div>
       )}
       

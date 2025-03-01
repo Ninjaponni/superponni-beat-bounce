@@ -1,34 +1,36 @@
 
-// Global types for the game
-interface Window {
-  gameConfig: {
-    physics: {
-      lov: {
-        enabled: boolean;
-        gravity: number;
-        airResistance: number;
-        bounceFactor: number;
-        maxSpeed?: number;
-        bounceHeight?: number;
-      }
-    },
-    difficulty: string;
+import * as THREE from 'three';
+
+interface GameConfig {
+  physics: {
+    lov: {
+      enabled: boolean;
+      gravity: number;
+      airResistance: number;
+      bounceFactor: number;
+      maxSpeed?: number;
+    }
   };
-  gameScene?: THREE.Scene;
-  gameCamera?: THREE.Camera;
-  gameBass?: THREE.Object3D;
-  gameState?: {
-    score: number;
-    combo: number;
-    isPlaying: boolean;
-  };
-  gameAnimationFunctions?: Function[];
-  bassController?: any;
-  beatGenerator?: NodeJS.Timeout;
-  checkHit?: () => { hit: boolean, quality: string };
-  _debugLogs?: Array<{
-    level: 'info' | 'warn' | 'error';
-    message: string;
-    timestamp: Date;
-  }>;
+  difficulty: string;
 }
+
+// Global objects accessible on window
+declare global {
+  interface Window {
+    gameConfig: GameConfig;
+    gameScene?: THREE.Scene;
+    gameCamera?: THREE.Camera;
+    gameBass?: THREE.Object3D;
+    bassController?: any;
+    checkHit?: () => { hit: boolean; quality: string };
+    gameState?: {
+      score: number;
+      combo: number;
+      isPlaying: boolean;
+    };
+    gameAnimationFunctions?: Array<(deltaTime: number) => void>;
+    beatGenerator?: NodeJS.Timeout;
+  }
+}
+
+export {};

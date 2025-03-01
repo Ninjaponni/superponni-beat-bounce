@@ -188,7 +188,9 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       ref={containerRef}
       className="beat-visualizer"
       onClick={checkHit}
-    ></div>
+    >
+      <div className="instruction-text">Trykk på mellomrom når sirkelen er i midten</div>
+    </div>
   );
 };
 
