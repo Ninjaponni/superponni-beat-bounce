@@ -36,7 +36,7 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
   
   const assetLoaderRef = useRef(new AssetLoader());
   const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM for "Vi e trøndera"
-  const audioManagerRef = useRef(new AudioManager());
+  const audioManagerRef = useRef(AudioManager.getInstance());
   const bassRef = useRef<THREE.Object3D | null>(null);
   const gameTimeRef = useRef(0);
   const animationFrameRef = useRef<number | null>(null);
