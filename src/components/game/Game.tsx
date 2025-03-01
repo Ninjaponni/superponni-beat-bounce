@@ -20,7 +20,7 @@ const Game = ({ onGameOver }: GameProps) => {
     bass: false,
     beatVisualizer: false
   });
-  const [showInstructions, setShowInstructions] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
   
   // Initialize audio when component mounts
   useEffect(() => {
@@ -100,10 +100,10 @@ const Game = ({ onGameOver }: GameProps) => {
       setGameState('playing');
       setShowInstructions(true);
       
-      // Hide instructions after 5 seconds
+      // Hide instructions after 8 seconds
       setTimeout(() => {
         setShowInstructions(false);
-      }, 5000);
+      }, 8000);
       
       // Load components gradually
       setTimeout(() => {
@@ -243,8 +243,10 @@ const Game = ({ onGameOver }: GameProps) => {
             </div>
           )}
           {showInstructions && (
-            <div className="instructions absolute bottom-10 left-1/2 transform -translate-x-1/2 bg-black/50 text-white p-3 rounded text-lg">
-              Trykk på mellomrom når sirkelen er i midten
+            <div className="instructions absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-black/70 text-white p-3 rounded-lg text-lg max-w-md">
+              <h3 className="font-bold text-yellow-300 mb-2">Slik spiller du:</h3>
+              <p>Trykk på <strong className="text-green-400">mellomrom</strong> når de hvite sirklene er i midten av ringen</p>
+              <p className="mt-1">Perfekt timing gir høyest poeng!</p>
             </div>
           )}
         </div>

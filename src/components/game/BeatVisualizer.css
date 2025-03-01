@@ -4,32 +4,45 @@
   bottom: 100px;
   left: 0;
   width: 100%;
-  height: 50px;
+  height: 80px;
   pointer-events: none;
+  z-index: 100;
+}
+
+.beat-track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 4px;
+  background-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-50%);
+  z-index: 1;
 }
 
 .target-zone {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
-  width: 40px;
-  height: 40px;
-  border: 2px solid white;
+  width: 77px;
+  height: 77px;
+  border: 3px solid white;
   border-radius: 50%;
-  z-index: 5;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
 }
 
 .beat-circle {
   position: absolute;
-  left: 0;
   top: 50%;
-  transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
+  width: 29px;
+  height: 29px;
   background-color: white;
   border-radius: 50%;
-  z-index: 4;
+  transform: translateY(-50%);
+  z-index: 3;
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.7);
 }
 
 .hit-perfect {
@@ -51,6 +64,58 @@
   transform: translateY(-50%) scale(1.2);
   opacity: 0.8;
   transition: transform 0.1s, opacity 0.1s, background-color 0.1s;
+}
+
+.hit-text {
+  position: absolute;
+  top: -30px;
+  transform: translateX(-50%);
+  font-size: 24px;
+  font-weight: bold;
+  animation: float-up 1s ease-out forwards;
+  z-index: 10;
+  white-space: nowrap;
+}
+
+.hit-text.perfect {
+  color: #63AF30;
+  text-shadow: 0 0 5px rgba(99, 175, 48, 0.7);
+}
+
+.hit-text.good {
+  color: #FFD700;
+  text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
+}
+
+.hit-text.ok {
+  color: #FFA500;
+  text-shadow: 0 0 5px rgba(255, 165, 0, 0.7);
+}
+
+.target-hit-perfect {
+  border-color: #63AF30;
+  box-shadow: 0 0 15px rgba(99, 175, 48, 0.8);
+}
+
+.target-hit-good {
+  border-color: #FFD700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.8);
+}
+
+.target-hit-ok {
+  border-color: #FFA500;
+  box-shadow: 0 0 15px rgba(255, 165, 0, 0.8);
+}
+
+@keyframes float-up {
+  0% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-50px);
+    opacity: 0;
+  }
 }
 
 @keyframes moveBeat {
