@@ -106,16 +106,21 @@ export class BassController {
     try {
       // Set force based on hit quality
       let force = 0;
+      let horizontalForce = 0;
       
       switch (quality) {
         case 'perfect':
           force = 5.0;
+          horizontalForce = 0.5;
+          this.showPerfectEffect();
           break;
         case 'good':
           force = 3.0;
+          horizontalForce = 1.0;
           break;
         case 'ok':
           force = 1.5;
+          horizontalForce = 1.5;
           break;
         default:
           // Miss - no force
@@ -126,12 +131,55 @@ export class BassController {
       this.velocity.y = force;
       
       // Add some random horizontal movement
-      this.velocity.x = (Math.random() - 0.5) * 2;
-      this.velocity.z = (Math.random() - 0.5) * 2;
+      this.velocity.x = (Math.random() - 0.5) * horizontalForce;
+      this.velocity.z = (Math.random() - 0.5) * horizontalForce;
       
       console.log(`Bass hit with quality: ${quality}, force: ${force}`);
     } catch (error) {
       console.error("Error in BassController.handleHit:", error);
+    }
+  }
+  
+  // Visual effect for perfect hits
+  private showPerfectEffect(): void {
+    try {
+      // Create a ring effect around the bass
+      const geometry = new THREE.RingGeometry(0.3, 0.4, 32);
+      const material = new THREE.MeshBasicMaterial({ 
+        color: 0x63AF30, 
+        transparent: true, 
+        opacity: 0.7,
+        side: THREE.DoubleSide
+      });
+      
+      const ring = new THREE.Mesh(geometry, material);
+      ring.position.copy(this.position);
+      ring.rotation.x = Math.PI / 2; // Flat ring
+      
+      this.scene.add(ring);
+      
+      // Animate and remove
+      let scale = 1.0;
+      let opacity = 0.7;
+      
+      const animate = () => {
+        scale += 0.05;
+        opacity -= 0.02;
+        
+        if (opacity <= 0) {
+          this.scene.remove(ring);
+          return;
+        }
+        
+        ring.scale.set(scale, scale, 1);
+        material.opacity = opacity;
+        
+        requestAnimationFrame(animate);
+      };
+      
+      animate();
+    } catch (error) {
+      console.error("Error showing perfect effect:", error);
     }
   }
 }

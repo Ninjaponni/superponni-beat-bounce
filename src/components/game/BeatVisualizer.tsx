@@ -1,78 +1,189 @@
 
-import { useEffect, useRef, useState } from 'react';
-import { Beat } from '@/utils/RhythmEngine';
+import React, { useEffect, useState, useRef } from 'react';
+import './BeatVisualizer.css';
 
-interface BeatVisualizerProps {
-  beats: Beat[];
-  currentTime: number;
-}
-
-const BeatVisualizer = ({ beats, currentTime }: BeatVisualizerProps) => {
+const BeatVisualizer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isActive, setIsActive] = useState(false);
   
-  // Constants for visualization
-  const containerWidth = 600; // px
-  const beatWidth = 29; // px
-  const outlineWidth = 77; // px
-  const visibilityWindow = 2000; // ms
-  
-  // Calculate beat position based on timing
-  const calculateBeatPosition = (beatTime: number) => {
-    const timeDiff = beatTime - currentTime;
-    // Convert time difference to position
-    // Starts from left and moves to right
-    const progress = 1 - (timeDiff / visibilityWindow);
-    return (containerWidth * progress) - (beatWidth / 2);
-  };
-  
-  // Calculate opacity based on position
-  const calculateOpacity = (xPos: number) => {
-    // Maximum opacity in the middle, fade in/out on sides
-    const center = containerWidth / 2;
-    const distance = Math.abs(xPos + beatWidth/2 - center);
+  useEffect(() => {
+    console.log("BeatVisualizer mounting");
     
-    if (distance > 200) {
-      return Math.max(0, 1 - (distance - 200) / 100);
+    try {
+      // Create container for beat circles if it doesn't exist
+      if (!containerRef.current) {
+        console.warn("BeatVisualizer container not available");
+        return;
+      }
+      
+      // Add target zone (the fixed circle)
+      const targetZone = document.createElement('div');
+      targetZone.className = 'target-zone';
+      containerRef.current.appendChild(targetZone);
+      
+      // Setup beat generation based on BPM
+      const bpm = 130; // Default BPM
+      const beatInterval = 60000 / bpm; // ms between beats
+      
+      // Start generating beats
+      setIsActive(true);
+      
+      // Generate beat circles at regular intervals
+      const beatGenerator = setInterval(() => {
+        if (!isActive || !containerRef.current) return;
+        
+        // Create a beat circle
+        const beatCircle = document.createElement('div');
+        beatCircle.className = 'beat-circle';
+        containerRef.current.appendChild(beatCircle);
+        
+        // Animate the beat circle from left to right
+        beatCircle.style.animation = 'moveBeat 2s linear forwards';
+        
+        // Remove beat circle after animation completes
+        setTimeout(() => {
+          if (beatCircle.parentNode) {
+            beatCircle.parentNode.removeChild(beatCircle);
+          }
+        }, 2000);
+      }, beatInterval);
+      
+      // Store reference to beatGenerator in window for debug
+      window.beatGenerator = beatGenerator;
+      
+      // Clean up
+      return () => {
+        setIsActive(false);
+        clearInterval(beatGenerator);
+        delete window.beatGenerator;
+      };
+    } catch (error) {
+      console.error("Error in BeatVisualizer:", error);
     }
-    return 1;
+  }, []);
+  
+  // Handle player input (space or click)
+  const checkHit = () => {
+    try {
+      if (!containerRef.current) return { hit: false, quality: 'miss' };
+      
+      // Get all active beat circles
+      const beatCircles = containerRef.current.querySelectorAll('.beat-circle');
+      if (beatCircles.length === 0) return { hit: false, quality: 'miss' };
+      
+      // Get target zone position
+      const targetZone = containerRef.current.querySelector('.target-zone');
+      if (!targetZone) return { hit: false, quality: 'miss' };
+      
+      const targetRect = targetZone.getBoundingClientRect();
+      const targetCenterX = targetRect.left + targetRect.width / 2;
+      
+      // Find closest beat to target
+      let closestBeat = null;
+      let closestDistance = Infinity;
+      
+      beatCircles.forEach(beat => {
+        const beatRect = beat.getBoundingClientRect();
+        const beatCenterX = beatRect.left + beatRect.width / 2;
+        const distance = Math.abs(beatCenterX - targetCenterX);
+        
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closestBeat = beat;
+        }
+      });
+      
+      // Determine hit quality based on distance
+      if (closestBeat && closestDistance < 100) {
+        // Get precise quality
+        let quality = 'miss';
+        
+        if (closestDistance < 20) {
+          quality = 'perfect';
+          closestBeat.classList.add('hit-perfect');
+        } else if (closestDistance < 50) {
+          quality = 'good';
+          closestBeat.classList.add('hit-good');
+        } else {
+          quality = 'ok';
+          closestBeat.classList.add('hit-ok');
+        }
+        
+        // Remove the beat circle
+        setTimeout(() => {
+          if (closestBeat && closestBeat.parentNode) {
+            closestBeat.parentNode.removeChild(closestBeat);
+          }
+        }, 100);
+        
+        // Trigger hit on bass controller if available
+        if (window.bassController && typeof window.bassController.handleHit === 'function') {
+          window.bassController.handleHit(quality);
+        } else if (window.gameBass) {
+          // Simple animation if no controller
+          const force = quality === 'perfect' ? 5 : 
+                       quality === 'good' ? 3 : 1.5;
+          
+          window.gameBass.position.y += force * 0.1;
+          console.log(`Bass hit with quality: ${quality}, force: ${force}`);
+        }
+        
+        // Update score
+        if (window.gameState) {
+          const points = quality === 'perfect' ? 100 : 
+                        quality === 'good' ? 50 : 10;
+          
+          window.gameState.score = (window.gameState.score || 0) + points;
+          window.gameState.combo = (window.gameState.combo || 0) + 1;
+          
+          // Update UI if it exists
+          const scoreElement = document.querySelector('.score');
+          if (scoreElement) {
+            scoreElement.textContent = `Score: ${window.gameState.score}`;
+          }
+          
+          const comboElement = document.querySelector('.combo');
+          if (comboElement) {
+            comboElement.textContent = `Combo: ${window.gameState.combo}`;
+          }
+        }
+        
+        return { hit: true, quality };
+      }
+      
+      // Miss
+      if (window.gameState) {
+        window.gameState.combo = 0;
+        
+        // Update UI
+        const comboElement = document.querySelector('.combo');
+        if (comboElement) {
+          comboElement.textContent = `Combo: 0`;
+        }
+      }
+      
+      return { hit: false, quality: 'miss' };
+    } catch (error) {
+      console.error("Error checking hit:", error);
+      return { hit: false, quality: 'miss' };
+    }
   };
+  
+  // Add global access to checkHit
+  useEffect(() => {
+    window.checkHit = checkHit;
+    
+    return () => {
+      delete window.checkHit;
+    };
+  }, []);
   
   return (
-    <div className="absolute bottom-[150px] left-1/2 transform -translate-x-1/2 h-[100px] w-[600px]">
-      {/* Target zone (white outline) */}
-      <div 
-        className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[77px] h-[77px] border-2 border-white rounded-full"
-      />
-      
-      {/* Beat circles */}
-      {beats.map((beat, index) => {
-        const xPos = calculateBeatPosition(beat.time);
-        const opacity = calculateOpacity(xPos);
-        
-        // Determine color based on status
-        let bgColor = 'bg-white';
-        if (beat.score === 'perfect') bgColor = 'bg-[#63AF30]';
-        if (beat.score === 'good') bgColor = 'bg-yellow-500';
-        if (beat.score === 'miss') bgColor = 'bg-[#E91F1F]';
-        
-        // Only render visible beats
-        if (opacity <= 0) return null;
-        
-        return (
-          <div 
-            key={index}
-            className={`absolute top-1/2 transform -translate-y-1/2 rounded-full ${bgColor} transition-colors duration-100`}
-            style={{
-              left: `${xPos}px`,
-              width: '29px',
-              height: '29px',
-              opacity: opacity,
-              transform: beat.hit ? 'translate(-50%, -50%) scale(1.3)' : 'translate(-50%, -50%) scale(1)'
-            }}
-          />
-        );
-      })}
-    </div>
+    <div 
+      ref={containerRef}
+      className="beat-visualizer"
+      onClick={checkHit}
+    ></div>
   );
 };
 

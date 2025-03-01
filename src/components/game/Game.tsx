@@ -4,6 +4,7 @@ import GameCanvas from './GameCanvas';
 import { Button } from "@/components/ui/button";
 import Bass from './Bass';
 import DebugPanel from '@/components/debug/DebugPanel';
+import BeatVisualizer from './BeatVisualizer';
 
 interface GameProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
@@ -114,12 +115,46 @@ const Game = ({ onGameOver }: GameProps) => {
     }
   }, [gameState]);
 
+  // Handle player input
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    // Handle space key
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        if (typeof window.checkHit === 'function') {
+          window.checkHit();
+        }
+      }
+    };
+    
+    // Handle click events (if not handled by BeatVisualizer)
+    const handleClick = () => {
+      if (typeof window.checkHit === 'function') {
+        window.checkHit();
+      }
+    };
+    
+    // Add event listeners
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleClick);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', handleClick);
+    };
+  }, [gameState]);
+
   return (
     <div className="game-container relative w-screen h-screen overflow-hidden">
       {/* GameCanvas is always rendered */}
       <GameCanvas gameState={gameState}>
         {/* Conditionally render Bass component */}
         {gameState === 'playing' && loadedComponents.bass && <Bass />}
+        {/* Conditionally render BeatVisualizer component */}
+        {gameState === 'playing' && loadedComponents.beatVisualizer && <BeatVisualizer />}
       </GameCanvas>
       
       {/* UI overlays based on game state */}
@@ -145,6 +180,9 @@ const Game = ({ onGameOver }: GameProps) => {
         <div className="ui-overlay absolute inset-0 pointer-events-none z-10">
           <div className="score m-4 p-3 bg-black/50 text-white rounded text-xl">
             Score: {score}
+          </div>
+          <div className="combo m-4 mt-14 p-3 bg-black/50 text-white rounded text-xl">
+            Combo: {window.gameState?.combo || 0}
           </div>
           {!loadedComponents.beatVisualizer && (
             <div className="loading absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/50 text-white p-4 rounded text-lg">
