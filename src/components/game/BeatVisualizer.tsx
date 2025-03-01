@@ -10,6 +10,7 @@ interface BeatVisualizerProps {
 const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(true);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
@@ -66,6 +67,9 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         // Add to active beats
         activeBeats.push(beatCircle);
         
+        // Log for debugging
+        console.log(`Beat circle created, will reach target in ${timeToTargetMs.toFixed(0)}ms`);
+        
         // Animate the beat circle from left to right
         beatCircle.style.animation = 'moveBeat 2s linear forwards';
         
@@ -88,6 +92,11 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       
       // Store reference to beatGenerator in window for debug
       window.beatGenerator = beatGenerator;
+      
+      // After 8 seconds, hide the instructions
+      setTimeout(() => {
+        setShowInstructions(false);
+      }, 8000);
       
       // Handle player input (space or click)
       const checkHit = () => {
@@ -264,6 +273,13 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       className="beat-visualizer"
       onClick={checkHit}
     >
+      {showInstructions && (
+        <div className="instruction-box">
+          <h3>Slik spiller du:</h3>
+          <p>Trykk på <strong>mellomrom</strong> når de hvite sirklene er i midten av ringen</p>
+          <p>Perfekt timing gir høyest poeng!</p>
+        </div>
+      )}
       <div className="instruction-text">Trykk på mellomrom når sirkelen er i midten</div>
     </div>
   );
