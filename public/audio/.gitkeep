@@ -1,0 +1,12 @@
+
+# This file is used to keep the audio directory in git
+# Replace with actual audio files:
+# - vi_e_trondera.mp3 (hovedmusikken)
+# - perfect.wav (lyd for perfekte treff)
+# - good.wav (lyd for gode treff)
+# - miss.wav (lyd for bom)
+# - countdown.wav (nedtelling)
+# - start.wav (start-lyd)
+# - victory.wav (seierslyd)
+# - defeat.wav (nederlagslyd)
+# - needle_scratch.wav (for game over-effekten)

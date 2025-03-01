@@ -13,13 +13,15 @@ export class AudioManager {
   private nextBeatTime: number = 0;
   private isPlaying: boolean = false;
   private timerId: number | null = null;
+  private fallbackEnabled: boolean = false;
   
   constructor() {
     // Initialiser AudioContext med feilhåndtering
     try {
-      this.context = new AudioContext();
+      this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
     } catch (error) {
       console.error('Web Audio API ikke støttet:', error);
+      this.fallbackEnabled = true;
     }
     
     // Bind metoder
@@ -51,10 +53,57 @@ export class AudioManager {
       console.log(`Lyden "${name}" lastet`);
     } catch (error) {
       console.error(`Kunne ikke laste lyden "${name}":`, error);
+      // Opprett en fallback lydeffekt (stille buffer)
+      if (this.context) {
+        const fallbackBuffer = this.createFallbackSound(name);
+        this.sounds.set(name, fallbackBuffer);
+      }
     }
   }
   
+  // Opprett en fallback lyd (en kort stille buffer eller enkel tone)
+  private createFallbackSound(name: SoundType): AudioBuffer {
+    if (!this.context) throw new Error("AudioContext ikke tilgjengelig");
+    
+    // Opprett en kort lydeffekt for tester
+    const sampleRate = this.context.sampleRate;
+    const duration = 0.5; // 500ms
+    const buffer = this.context.createBuffer(1, sampleRate * duration, sampleRate);
+    
+    // For perfekt/good/miss, opprett enkle toner med forskjellig frekvens
+    if (name === 'perfect' || name === 'good' || name === 'miss' || name === 'beat') {
+      const channelData = buffer.getChannelData(0);
+      
+      // Velg frekvens basert på lydtype
+      let frequency;
+      switch (name) {
+        case 'perfect': frequency = 880; break; // A5
+        case 'good': frequency = 659.25; break; // E5
+        case 'miss': frequency = 329.63; break; // E4
+        default: frequency = 440; break; // A4
+      }
+      
+      // Fyll buffer med en enkel oscillator
+      for (let i = 0; i < buffer.length; i++) {
+        // Enkel sinusbølge
+        channelData[i] = Math.sin(2 * Math.PI * frequency * i / sampleRate);
+        
+        // Legg til fade out
+        const fadeOut = 1 - (i / buffer.length);
+        channelData[i] *= fadeOut;
+      }
+    }
+    
+    console.log(`Opprettet fallback lyd for "${name}"`);
+    return buffer;
+  }
+  
   async loadAllSounds(): Promise<void> {
+    if (this.fallbackEnabled) {
+      console.log('Bruker fallback-lydeffekter (AudioContext ikke støttet)');
+      return;
+    }
+    
     const soundsToLoad: Array<{ name: SoundType; url: string }> = [
       { name: 'music', url: '/audio/vi_e_trondera.mp3' },
       { name: 'perfect', url: '/audio/perfect.wav' },
@@ -73,6 +122,15 @@ export class AudioManager {
     );
     
     await Promise.allSettled(promises);
+    
+    // For lyder som ikke ble lastet, opprett fallbacks
+    for (const sound of soundsToLoad) {
+      if (!this.sounds.has(sound.name) && this.context) {
+        const fallbackBuffer = this.createFallbackSound(sound.name);
+        this.sounds.set(sound.name, fallbackBuffer);
+      }
+    }
+    
     console.log('Lydassets ferdig lastet');
   }
   

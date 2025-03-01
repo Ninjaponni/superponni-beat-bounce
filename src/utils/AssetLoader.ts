@@ -1,7 +1,7 @@
 
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { Audio } from 'three';
-import { AudioLoader, LoadingManager } from 'three';
+import { AudioLoader, LoadingManager, BoxGeometry, MeshBasicMaterial, Mesh, Object3D } from 'three';
 
 export class AssetLoader {
   private models: Map<string, any> = new Map();
@@ -23,34 +23,65 @@ export class AssetLoader {
   
   async loadAll(): Promise<boolean> {
     try {
-      // Last modeller og animasjoner
-      await Promise.all([
-        this.loadModel('idle', '/models/Idle.fbx'),
-        this.loadModel('kickLeft', '/models/Kick Soccerball L.fbx'),
-        this.loadModel('kickRight', '/models/Kick Soccerball R.fbx'),
-        this.loadModel('victory', '/models/Victory.fbx'),
-        this.loadModel('defeat', '/models/Defeat.fbx'),
+      // Prøv å laste modeller og animasjoner, men ikke stopp hvis enkelte filer mangler
+      const loadingPromises = [
+        this.loadModel('idle', '/models/Idle.fbx', true),
+        this.loadModel('kickLeft', '/models/Kick Soccerball L.fbx', true),
+        this.loadModel('kickRight', '/models/Kick Soccerball R.fbx', true),
+        this.loadModel('victory', '/models/Victory.fbx', true),
+        this.loadModel('defeat', '/models/Defeat.fbx', true),
         
         // TODO: Legg til bass modell
         // this.loadModel('bass', '/models/bass.fbx'),
         
-        // Last lyder
-        // Disse filene må opprettes eller erstattes med faktiske filer
-        this.loadAudio('beat', '/audio/beat.mp3'),
-        this.loadAudio('perfect', '/audio/perfect.wav'),
-        this.loadAudio('good', '/audio/good.wav'),
-        this.loadAudio('miss', '/audio/miss.wav'),
-        this.loadAudio('music', '/audio/vi_e_trondera.mp3')
-      ]);
+        // Prøv å laste lyder, men ikke stopp hvis de mangler
+        this.loadAudio('beat', '/audio/beat.mp3', true),
+        this.loadAudio('perfect', '/audio/perfect.wav', true),
+        this.loadAudio('good', '/audio/good.wav', true),
+        this.loadAudio('miss', '/audio/miss.wav', true),
+        this.loadAudio('music', '/audio/vi_e_trondera.mp3', true)
+      ];
+      
+      // Vent på at alle forsøkene fullføres (uavhengig av om de lykkes)
+      await Promise.allSettled(loadingPromises);
+      
+      // Opprett fallback-ressurser for manglende filer
+      this.createFallbackResources();
       
       return true;
     } catch (error) {
       console.error("Kunne ikke laste alle ressurser:", error);
-      return false;
+      // Vi oppretter fallback-ressurser selv om noe gikk galt
+      this.createFallbackResources();
+      return true; // Returnerer true for å la spillet fortsette
     }
   }
   
-  private async loadModel(name: string, path: string): Promise<void> {
+  private createFallbackResources(): void {
+    // Sjekk om vi mangler noen grunnleggende modeller og opprett fallbacks
+    const requiredModels = ['idle', 'kickLeft', 'kickRight', 'victory', 'defeat'];
+    
+    for (const modelName of requiredModels) {
+      if (!this.models.has(modelName)) {
+        console.log(`Oppretter fallback for modell: ${modelName}`);
+        const geometry = new BoxGeometry(0.5, 1, 0.5);
+        const material = new MeshBasicMaterial({ color: 0x00ff00 });
+        const fallbackModel = new Mesh(geometry, material);
+        
+        // Legg til en dummy-animasjon
+        const dummyAnimation = {
+          name: modelName,
+          duration: 1,
+          tracks: []
+        };
+        
+        this.models.set(modelName, fallbackModel);
+        this.animations.set(modelName, dummyAnimation);
+      }
+    }
+  }
+  
+  private async loadModel(name: string, path: string, allowFailure: boolean = false): Promise<void> {
     try {
       const loader = new FBXLoader(this.loadingManager);
       const model = await loader.loadAsync(path);
@@ -65,11 +96,13 @@ export class AssetLoader {
       console.log(`Loaded model: ${name}`);
     } catch (error) {
       console.error(`Kunne ikke laste modell ${name}:`, error);
-      throw error;
+      if (!allowFailure) {
+        throw error;
+      }
     }
   }
   
-  private async loadAudio(name: string, path: string): Promise<void> {
+  private async loadAudio(name: string, path: string, allowFailure: boolean = false): Promise<void> {
     try {
       const loader = new AudioLoader(this.loadingManager);
       const buffer = await loader.loadAsync(path);
@@ -77,7 +110,9 @@ export class AssetLoader {
       console.log(`Loaded audio: ${name}`);
     } catch (error) {
       console.error(`Kunne ikke laste lyd ${name}:`, error);
-      throw error;
+      if (!allowFailure) {
+        throw error;
+      }
     }
   }
   

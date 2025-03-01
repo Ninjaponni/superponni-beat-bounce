@@ -1,0 +1,8 @@
+
+# This file is used to keep the models directory in git
+# Replace with actual FBX model files:
+# - Idle.fbx (karakteren med idle-animasjon)
+# - Kick Soccerball L.fbx (venstrefot spark-animasjon)
+# - Kick Soccerball R.fbx (høyrefot spark-animasjon)
+# - Victory.fbx (seiersanimasjon)
+# - Defeat.fbx (nederlagsanimasjon)
