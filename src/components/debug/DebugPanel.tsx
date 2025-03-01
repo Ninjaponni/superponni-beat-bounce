@@ -1,142 +1,140 @@
-
 import React, { useState, useEffect } from 'react';
+import './DebugPanel.css';
 
-interface LogEntry {
-  level: 'info' | 'warn' | 'error';
-  message: string;
-  timestamp: Date;
+interface DebugPanelProps {
+  // No props needed
 }
 
-export const DebugPanel: React.FC = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+const DebugPanel: React.FC<DebugPanelProps> = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [logs, setLogs] = useState<Array<{ level: string; message: string; timestamp: Date }>>([]);
   
   useEffect(() => {
-    if (!isOpen) return;
-    
-    // Initialize _debugLogs if it doesn't exist
+    // Initialize debug logs array if it doesn't exist
     if (!window._debugLogs) {
       window._debugLogs = [];
     }
     
-    setLogs(window._debugLogs);
+    // Log panel initialization
+    addLog('info', 'Debug panel initialized');
     
-    // Setup log interceptor
-    const originalConsole = {
-      log: console.log,
-      warn: console.warn,
-      error: console.error
+    // Set up console interception
+    const originalConsoleLog = console.log;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleError = console.error;
+    
+    console.log = function(...args) {
+      addLog('info', args.map(arg => String(arg)).join(' '));
+      originalConsoleLog.apply(console, args);
     };
     
-    // Override console methods to capture logs
-    console.log = (...args) => {
-      originalConsole.log(...args);
-      addLog('info', args);
+    console.warn = function(...args) {
+      addLog('warn', args.map(arg => String(arg)).join(' '));
+      originalConsoleWarn.apply(console, args);
     };
     
-    console.warn = (...args) => {
-      originalConsole.warn(...args);
-      addLog('warn', args);
+    console.error = function(...args) {
+      addLog('error', args.map(arg => String(arg)).join(' '));
+      originalConsoleError.apply(console, args);
     };
     
-    console.error = (...args) => {
-      originalConsole.error(...args);
-      addLog('error', args);
+    // Set up keyboard shortcut (F12) to toggle panel
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'F12') {
+        event.preventDefault();
+        setIsVisible(prev => !prev);
+      }
     };
     
-    // Helper function to add logs
-    const addLog = (level: 'info' | 'warn' | 'error', args: any[]) => {
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ');
-      
-      const newLog = { level, message, timestamp: new Date() };
-      window._debugLogs = [...(window._debugLogs || []), newLog].slice(-100); // Keep last 100 logs
-      setLogs(window._debugLogs);
-    };
+    window.addEventListener('keydown', handleKeyDown);
     
-    // Clean up
+    // Set up periodic update of logs from the global array
+    const updateInterval = setInterval(() => {
+      if (window._debugLogs) {
+        setLogs([...window._debugLogs]);
+      }
+    }, 500);
+    
     return () => {
-      console.log = originalConsole.log;
-      console.warn = originalConsole.warn;
-      console.error = originalConsole.error;
+      // Restore original console methods
+      console.log = originalConsoleLog;
+      console.warn = originalConsoleWarn;
+      console.error = originalConsoleError;
+      
+      // Remove event listener and interval
+      window.removeEventListener('keydown', handleKeyDown);
+      clearInterval(updateInterval);
     };
-  }, [isOpen]);
+  }, []);
   
-  if (!isOpen) {
+  // Add log to global array
+  const addLog = (level: string, message: string) => {
+    if (!window._debugLogs) {
+      window._debugLogs = [];
+    }
+    
+    const logEntry = {
+      level,
+      message,
+      timestamp: new Date()
+    };
+    
+    window._debugLogs.push(logEntry);
+    
+    // Keep only the last 100 logs
+    if (window._debugLogs.length > 100) {
+      window._debugLogs.shift();
+    }
+  };
+  
+  if (!isVisible) {
     return (
-      <button 
-        className="debug-toggle"
-        onClick={() => setIsOpen(true)}
-        style={{
-          position: 'fixed',
-          bottom: '10px',
-          right: '10px',
-          zIndex: 9999,
-          background: 'rgba(0,0,0,0.7)',
-          color: 'white',
-          border: 'none',
-          padding: '5px 10px',
-          borderRadius: '4px'
-        }}
+      <div 
+        className="debug-panel-toggle"
+        onClick={() => setIsVisible(true)}
       >
-        Debug
-      </button>
+        Debug (F12)
+      </div>
     );
   }
   
   return (
-    <div 
-      className="debug-panel"
-      style={{
-        position: 'fixed',
-        bottom: '0',
-        right: '0',
-        width: '400px',
-        height: '300px',
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        fontFamily: 'monospace'
-      }}
-    >
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        padding: '5px',
-        borderBottom: '1px solid #333'
-      }}>
-        <h3 style={{ margin: 0 }}>Debug Panel</h3>
-        <button 
-          onClick={() => setIsOpen(false)}
-          style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
-        >
-          ×
-        </button>
+    <div className="debug-panel">
+      <div className="debug-panel-header">
+        <h3>Debug Panel</h3>
+        <button onClick={() => setIsVisible(false)}>X</button>
       </div>
-      
-      <div style={{
-        overflowY: 'auto',
-        flex: 1,
-        padding: '5px'
-      }}>
-        {logs.map((log, index) => (
-          <div 
-            key={index}
-            style={{
-              color: log.level === 'error' ? '#ff5555' : 
-                    log.level === 'warn' ? '#ffaa33' : '#aaaaaa',
-              marginBottom: '2px',
-              fontSize: '12px',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all'
-            }}
-          >
-            [{log.timestamp.toLocaleTimeString()}] {log.message}
-          </div>
-        ))}
+      <div className="debug-panel-content">
+        <div className="debug-logs">
+          {logs.map((log, index) => (
+            <div 
+              key={index} 
+              className={`log-entry log-${log.level}`}
+            >
+              <span className="log-time">
+                {log.timestamp.toLocaleTimeString()}
+              </span>
+              <span className="log-level">
+                [{log.level.toUpperCase()}]
+              </span>
+              <span className="log-message">
+                {log.message}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="debug-panel-footer">
+        <button 
+          onClick={() => {
+            if (window._debugLogs) {
+              window._debugLogs = [];
+              setLogs([]);
+            }
+          }}
+        >
+          Clear Logs
+        </button>
       </div>
     </div>
   );

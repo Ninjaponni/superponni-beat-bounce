@@ -29,21 +29,21 @@ const Game = ({ onGameOver }: GameProps) => {
         const audioManager = AudioManager.getInstance();
         
         // Preload audio files
-        await Promise.all([
-          audioManager.loadSound('perfect', 'audio/perfect.wav'),
-          audioManager.loadSound('good', 'audio/good.wav'),
-          audioManager.loadSound('ok', 'audio/ok.wav'),
-          audioManager.loadSound('miss', 'audio/miss.wav')
-        ]);
+        await audioManager.loadAllSounds();
         
         // Make AudioManager globally accessible
-        (window as any).AudioManager = { getInstance: () => audioManager };
+        window.AudioManager = { getInstance: () => audioManager };
         
         console.log("Audio successfully initialized");
       } catch (error) {
         console.error("Error initializing audio:", error);
       }
     };
+    
+    // Initialize debug logs if not already done
+    if (!window._debugLogs) {
+      window._debugLogs = [];
+    }
     
     initAudio();
   }, []);
@@ -89,7 +89,8 @@ const Game = ({ onGameOver }: GameProps) => {
             enabled: true,
             gravity: 9.8,
             airResistance: 0.99,
-            bounceFactor: 0.8
+            bounceFactor: 0.8,
+            maxSpeed: 5
           }
         },
         difficulty: 'normal'
@@ -116,7 +117,7 @@ const Game = ({ onGameOver }: GameProps) => {
           // Start background music
           try {
             const audioManager = AudioManager.getInstance();
-            audioManager.playMusic('audio/vi_e_trondera.mp3', 0.7);
+            audioManager.playMusic('music', 0.7);
           } catch (error) {
             console.error("Failed to start music:", error);
           }

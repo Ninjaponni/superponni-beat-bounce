@@ -5,7 +5,8 @@ export class AudioManager {
   private sounds: Map<string, AudioBuffer> = new Map();
   private music: HTMLAudioElement | null = null;
   
-  private constructor() {
+  // Changed from private to protected to allow extension if needed
+  protected constructor() {
     try {
       this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       console.log("AudioContext created successfully");
