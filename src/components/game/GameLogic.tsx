@@ -151,7 +151,7 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
           />
         )}
         
-        {gameStarted && bassRef.current && <Bass model={bassRef.current} />}
+        {gameStarted && <Bass bassRef={bassRef} />}
       </GameCanvas>
       
       <ScoreDisplay score={score} combo={combo} missCount={missCount} />
