@@ -22,6 +22,15 @@ window.onerror = function(message, source, lineno, colno, error) {
     };
   }
   
+  // Add safety net for rhythmEngine
+  if (!window.hasOwnProperty('rhythmEngine')) {
+    window.rhythmEngine = {
+      synchronize: (startTime: number, beatInterval: number) => {
+        console.log(`Fallback rhythm engine synchronized with startTime: ${startTime}, beatInterval: ${beatInterval}`);
+      }
+    };
+  }
+  
   return false;
 };
 

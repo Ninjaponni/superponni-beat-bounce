@@ -1,4 +1,3 @@
-
 export class AudioManager {
   private static instance: AudioManager;
   private audioContext: AudioContext | null = null;
@@ -20,9 +19,7 @@ export class AudioManager {
     }
   }
   
-  // Initialize sound library with default paths
   private initSoundLibrary() {
-    // Game sounds
     this.soundUrls.set('perfect', '/audio/perfect.wav');
     this.soundUrls.set('good', '/audio/good.wav');
     this.soundUrls.set('ok', '/audio/ok.wav');
@@ -37,7 +34,6 @@ export class AudioManager {
     console.log("Sound library initialized with default paths");
   }
   
-  // Singleton pattern
   public static getInstance(): AudioManager {
     if (!AudioManager.instance) {
       AudioManager.instance = new AudioManager();
@@ -45,27 +41,23 @@ export class AudioManager {
     return AudioManager.instance;
   }
   
-  // Get sound URL from library (with fallback)
   private getSoundUrl(name: string): string {
     if (this.soundUrls.has(name)) {
       return this.soundUrls.get(name)!;
     } else {
       console.warn(`Sound '${name}' not found in library, using fallback`);
-      return `/audio/${name}.mp3`; // Generic fallback pattern
+      return `/audio/${name}.mp3`;
     }
   }
   
-  // Load all sounds needed for the game
   public async loadAllSounds(): Promise<void> {
     try {
       const loadPromises: Promise<void>[] = [];
       
-      // Load all sounds from the library
       this.soundUrls.forEach((url, name) => {
         loadPromises.push(this.loadSound(name, url));
       });
       
-      // Wait for all sounds to load (or fail)
       await Promise.allSettled(loadPromises);
       console.log("All sounds loaded successfully");
     } catch (error) {
@@ -73,7 +65,6 @@ export class AudioManager {
     }
   }
   
-  // Load a single sound
   public async loadSound(name: string, url: string): Promise<void> {
     if (!this.audioContext) return;
     
@@ -91,36 +82,29 @@ export class AudioManager {
     } catch (error) {
       console.error(`Failed to load sound '${name}' from ${url}:`, error);
       
-      // If this is a critical sound, try to create a fallback buffer
       if (name === 'music' || name === 'perfect' || name === 'miss') {
         this.createFallbackSound(name);
       }
     }
   }
   
-  // Create a fallback sound when loading fails
   private createFallbackSound(name: string): void {
     if (!this.audioContext) return;
     
     try {
-      // Create a simple synthetic sound as fallback
       const sampleRate = this.audioContext.sampleRate;
       const buffer = this.audioContext.createBuffer(1, sampleRate * 0.5, sampleRate);
       const channelData = buffer.getChannelData(0);
       
-      // Different waveforms based on sound type
       if (name === 'perfect') {
-        // High beep for perfect
         for (let i = 0; i < channelData.length; i++) {
           channelData[i] = Math.sin(i * 0.02) * Math.exp(-i * 0.001);
         }
       } else if (name === 'miss') {
-        // Low buzz for miss
         for (let i = 0; i < channelData.length; i++) {
           channelData[i] = Math.sin(i * 0.01) * Math.exp(-i * 0.001);
         }
       } else {
-        // Default white noise
         for (let i = 0; i < channelData.length; i++) {
           channelData[i] = (Math.random() * 2 - 1) * Math.exp(-i * 0.0005);
         }
@@ -133,7 +117,6 @@ export class AudioManager {
     }
   }
   
-  // Play a sound effect
   public playSound(name: string, volume: number = 1.0): void {
     if (!this.audioContext) return;
     
@@ -144,26 +127,21 @@ export class AudioManager {
     }
     
     try {
-      // Create source node
       const source = this.audioContext.createBufferSource();
       source.buffer = sound;
       
-      // Create gain node for volume
       const gainNode = this.audioContext.createGain();
       gainNode.gain.value = volume;
       
-      // Connect nodes
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
       
-      // Play sound
       source.start(0);
     } catch (error) {
       console.error(`Failed to play sound '${name}':`, error);
     }
   }
   
-  // Play a hit sound based on quality (for useGameBeatHandler.ts)
   public playHitSound(quality: string): void {
     switch (quality) {
       case 'perfect':
@@ -181,45 +159,34 @@ export class AudioManager {
     }
   }
   
-  // Play music with BPM synchronization
   public playMusic(name: string, bpm: number = 130, volume: number = 0.7): void {
     try {
-      // Stop current music if playing
       this.stopMusic();
       
-      // Update BPM and beat interval
       this.bpm = bpm;
       this.beatInterval = 60000 / bpm;
       
-      // Create new audio element
       const audio = new Audio();
       
-      // Set source from sound library
       audio.src = this.getSoundUrl(name);
       audio.loop = true;
       audio.volume = volume;
       
-      // Synchronize with global rhythm engine when playback starts
       const startMusic = async () => {
         const startTime = performance.now();
         console.log(`Music '${name}' started at ${startTime}ms with BPM ${bpm}`);
         
-        // Setup beat detection and callbacks
         this.setupBeatCallbacks(startTime);
         
-        // Update global rhythm engine if available
         if (window.rhythmEngine) {
           window.rhythmEngine.synchronize(startTime, this.beatInterval);
         }
       };
       
-      // Add event listener for when playback actually starts
       audio.addEventListener('playing', startMusic, { once: true });
       
-      // Start playing
       audio.play().catch(error => {
         console.error(`Failed to play music '${name}':`, error);
-        // Try fallback if available
         if (this.sounds.has(name)) {
           this.playFallbackMusic(name, volume);
         }
@@ -228,14 +195,12 @@ export class AudioManager {
       this.music = audio;
     } catch (error) {
       console.error(`Failed to play music '${name}':`, error);
-      // Try fallback if available
       if (this.sounds.has(name)) {
         this.playFallbackMusic(name, volume);
       }
     }
   }
   
-  // Play fallback music through AudioContext when HTML Audio fails
   private playFallbackMusic(name: string, volume: number = 0.7): void {
     if (!this.audioContext) return;
     
@@ -246,86 +211,83 @@ export class AudioManager {
     }
     
     try {
-      // Create source node
       const source = this.audioContext.createBufferSource();
       source.buffer = sound;
       source.loop = true;
       
-      // Create gain node for volume
       const gainNode = this.audioContext.createGain();
       gainNode.gain.value = volume;
       
-      // Connect nodes
       source.connect(gainNode);
       gainNode.connect(this.audioContext.destination);
       
-      // Play sound
       source.start(0);
       
-      // Store reference for stopping later
-      this.music = new Audio(); // Dummy audio element to maintain interface
+      this.music = new Audio();
       this.music.volume = volume;
       
-      // Store source node for stopping
       (this.music as any)._sourceNode = source;
       (this.music as any)._gainNode = gainNode;
       
       console.log(`Fallback music '${name}' started playing`);
       
-      // Setup beat callbacks
       const startTime = performance.now();
       this.setupBeatCallbacks(startTime);
       
-      // Update global rhythm engine if available
       if (window.rhythmEngine) {
-        window.rhythmEngine.synchronize(startTime, this.beatInterval);
+        try {
+          window.rhythmEngine.synchronize(startTime, this.beatInterval);
+        } catch (error) {
+          console.warn("Failed to synchronize with rhythm engine:", error);
+        }
+      } else {
+        console.log("Rhythm engine not available, skipping synchronization");
       }
     } catch (error) {
       console.error(`Failed to play fallback music '${name}':`, error);
     }
   }
   
-  // Setup beat callbacks based on BPM
   private setupBeatCallbacks(startTime: number): void {
-    // Clear any existing beat interval
     if (this.beatIntervalId !== null) {
       window.clearInterval(this.beatIntervalId);
       this.beatIntervalId = null;
     }
     
-    // Calculate time to first beat
     const currentTime = performance.now();
     const timeSinceStart = currentTime - startTime;
     const beatPhase = timeSinceStart % this.beatInterval;
     const timeToFirstBeat = this.beatInterval - beatPhase;
     
-    // Schedule first beat
     setTimeout(() => {
-      // Trigger first beat
       this.triggerBeatCallbacks(performance.now());
       
-      // Setup regular interval for subsequent beats
       this.beatIntervalId = window.setInterval(() => {
         this.triggerBeatCallbacks(performance.now());
       }, this.beatInterval);
     }, timeToFirstBeat);
     
     console.log(`Beat callbacks scheduled with interval ${this.beatInterval.toFixed(2)}ms (${this.bpm} BPM)`);
+    
+    if (window.rhythmEngine) {
+      try {
+        window.rhythmEngine.synchronize(startTime, this.beatInterval);
+      } catch (error) {
+        console.warn("Failed to synchronize with rhythm engine:", error);
+      }
+    } else {
+      console.warn("Global rhythm engine not available for synchronization");
+    }
   }
   
-  // Trigger all registered beat callbacks
   private triggerBeatCallbacks(time: number): void {
     this.beatCallbacks.forEach(callback => callback(time));
   }
   
-  // Play game over sound effects (used in GameLogic)
   public playGameOverEffects(): void {
-    // Play needle scratch effect if available
     this.playSound('needle_scratch', 1.0);
     
-    // Stop music with a fade out effect
     if (this.music) {
-      // Gradual volume reduction
       const fadeOutStep = 0.05;
       const fadeInterval = 100;
       const fadeOutMusic = () => {
@@ -336,7 +298,6 @@ export class AudioManager {
           this.music.pause();
           this.music = null;
           
-          // Clear beat interval
           if (this.beatIntervalId !== null) {
             window.clearInterval(this.beatIntervalId);
             this.beatIntervalId = null;
@@ -346,14 +307,11 @@ export class AudioManager {
       fadeOutMusic();
     }
     
-    // Play a specific game over sound
     this.playSound('defeat', 1.0);
   }
   
-  // Stop the music
   public stopMusic(): void {
     if (this.music) {
-      // Check if we're using fallback AudioContext source
       if ((this.music as any)._sourceNode) {
         try {
           (this.music as any)._sourceNode.stop();
@@ -367,25 +325,21 @@ export class AudioManager {
       this.music = null;
     }
     
-    // Clear beat interval
     if (this.beatIntervalId !== null) {
       window.clearInterval(this.beatIntervalId);
       this.beatIntervalId = null;
     }
   }
   
-  // Get the audio context
   public getAudioContext(): AudioContext | null {
     return this.audioContext;
   }
   
-  // Register beat callback function
   public onBeat(callback: (time: number) => void): void {
     this.beatCallbacks.push(callback);
     console.log("Beat callback registered");
   }
   
-  // Remove beat callback
   public offBeat(callback: (time: number) => void): void {
     const index = this.beatCallbacks.indexOf(callback);
     if (index !== -1) {
@@ -394,12 +348,10 @@ export class AudioManager {
     }
   }
   
-  // Get the current playback time
   public getCurrentTime(): number {
     return this.audioContext ? this.audioContext.currentTime : 0;
   }
   
-  // Get beat information
   public getBeatInfo(): { bpm: number, interval: number } {
     return {
       bpm: this.bpm,

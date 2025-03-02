@@ -31,4 +31,5 @@ interface Window {
   AudioManager?: {
     getInstance: () => import('../utils/AudioManager').AudioManager;
   };
+  rhythmEngine?: any; // Add rhythmEngine property
 }
