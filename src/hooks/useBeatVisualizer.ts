@@ -11,6 +11,13 @@ interface HitResult {
   timing?: 'early' | 'perfect' | 'late';
 }
 
+// Create a singleton pattern for the hook state to prevent multiple initializations
+const hookState = {
+  initialized: false,
+  initializing: false,
+  cleanupFunction: null as (() => void) | null,
+};
+
 export function useBeatVisualizer() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(false);
@@ -18,7 +25,15 @@ export function useBeatVisualizer() {
   const [rhythmEngine, setRhythmEngine] = useState<RhythmEngine | null>(null);
   
   useEffect(() => {
-    console.log("BeatVisualizer hook initializing");
+    // Only run the initialization once
+    if (hookState.initialized || hookState.initializing) {
+      console.log("BeatVisualizer hook already initialized, reusing instance");
+      return hookState.cleanupFunction;
+    }
+    
+    hookState.initializing = true;
+    console.log("BeatVisualizer hook initializing (first time)");
+    
     const audio = AudioManager.getInstance();
     setAudioManager(audio);
     
@@ -151,8 +166,13 @@ export function useBeatVisualizer() {
       window.checkHit = checkHit;
       console.log("Registered window.checkHit function");
       
-      // Clean up
-      return () => {
+      // Mark hook as initialized
+      hookState.initialized = true;
+      hookState.initializing = false;
+      
+      // Create cleanup function and store it
+      const cleanup = () => {
+        console.log("BeatVisualizer hook cleanup function called");
         setIsActive(false);
         
         // Remove beat callback from AudioManager
@@ -164,9 +184,19 @@ export function useBeatVisualizer() {
         if (window.checkHit === checkHit) {
           delete window.checkHit;
         }
+        
+        // Reset initialization flags only if this is the current cleanup function
+        hookState.initialized = false;
+        hookState.initializing = false;
+        hookState.cleanupFunction = null;
       };
+      
+      hookState.cleanupFunction = cleanup;
+      return cleanup;
     } catch (error) {
       console.error("Error in BeatVisualizer hook:", error);
+      hookState.initializing = false;
+      hookState.initialized = false;
       return;
     }
   }, []);

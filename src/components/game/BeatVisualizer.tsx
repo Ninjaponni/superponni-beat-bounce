@@ -1,9 +1,12 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import './BeatVisualizer.css';
 import useBeatVisualizer from '@/hooks/useBeatVisualizer';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
+
+// Use a static variable outside the component to track initialization state
+let globalBeatVisualizerInitialized = false;
 
 const BeatVisualizer: React.FC = () => {
   const { containerRef, isActive, audioManager } = useBeatVisualizer();
@@ -11,11 +14,12 @@ const BeatVisualizer: React.FC = () => {
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(1);
   const [initialized, setInitialized] = useState(false);
+  const activeBeatsRef = useRef<HTMLElement[]>([]);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
     
-    if (initialized) {
+    if (initialized || globalBeatVisualizerInitialized) {
       console.log("BeatVisualizer already initialized, skipping duplicate setup");
       return;
     }
@@ -87,9 +91,6 @@ const BeatVisualizer: React.FC = () => {
       console.log(`Beat generation started with interval ${beatInterval.toFixed(0)}ms (${bpm} BPM)`);
       console.log(`Time to target: ${timeToTargetMs.toFixed(0)}ms`);
       
-      // Track active beat circles
-      const activeBeats: HTMLElement[] = [];
-      
       // Generate beat circles function
       const createBeatCircle = () => {
         console.log("Creating beat circle");
@@ -104,16 +105,16 @@ const BeatVisualizer: React.FC = () => {
         containerRef.current.appendChild(beatCircle);
         
         // Add to active beats
-        activeBeats.push(beatCircle);
-        console.log(`Active beats: ${activeBeats.length}`);
+        activeBeatsRef.current.push(beatCircle);
+        console.log(`Active beats: ${activeBeatsRef.current.length}`);
         
         // Remove beat circle after animation completes
         setTimeout(() => {
           if (beatCircle.parentNode) {
             beatCircle.parentNode.removeChild(beatCircle);
-            const index = activeBeats.indexOf(beatCircle);
+            const index = activeBeatsRef.current.indexOf(beatCircle);
             if (index !== -1) {
-              activeBeats.splice(index, 1);
+              activeBeatsRef.current.splice(index, 1);
             }
           }
         }, timeToTargetMs);
@@ -147,12 +148,12 @@ const BeatVisualizer: React.FC = () => {
         let closestBeat = null;
         let closestDistance = Infinity;
         
-        if (activeBeats.length > 0) {
+        if (activeBeatsRef.current.length > 0) {
           // Get target zone position
           const targetRect = targetZone.getBoundingClientRect();
           const targetCenterX = targetRect.left + targetRect.width / 2;
           
-          activeBeats.forEach(beat => {
+          activeBeatsRef.current.forEach(beat => {
             const beatRect = beat.getBoundingClientRect();
             const beatCenterX = beatRect.left + beatRect.width / 2;
             const distance = Math.abs(beatCenterX - targetCenterX);
@@ -242,9 +243,9 @@ const BeatVisualizer: React.FC = () => {
           setTimeout(() => {
             if (closestBeat && closestBeat.parentNode) {
               closestBeat.parentNode.removeChild(closestBeat);
-              const index = activeBeats.indexOf(closestBeat);
+              const index = activeBeatsRef.current.indexOf(closestBeat);
               if (index !== -1) {
-                activeBeats.splice(index, 1);
+                activeBeatsRef.current.splice(index, 1);
               }
             }
           }, 100);
@@ -276,6 +277,7 @@ const BeatVisualizer: React.FC = () => {
       window.addEventListener('game:perfectMilestone', handlePerfectMilestone as EventListener);
       
       setInitialized(true);
+      globalBeatVisualizerInitialized = true;
       
       // Clean up
       return () => {
@@ -287,16 +289,19 @@ const BeatVisualizer: React.FC = () => {
         // Remove beat callback from AudioManager
         if (audioManager) {
           audioManager.offBeat(beatCallback);
+          console.log("Beat callback removed");
         }
         
         // Remove all active beats
-        activeBeats.forEach(beat => {
+        activeBeatsRef.current.forEach(beat => {
           if (beat.parentNode) {
             beat.parentNode.removeChild(beat);
           }
         });
+        activeBeatsRef.current = [];
         
         setInitialized(false);
+        globalBeatVisualizerInitialized = false;
       };
     } catch (error) {
       console.error("Error in BeatVisualizer:", error);

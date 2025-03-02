@@ -27,6 +27,7 @@
   font-family: monospace;
   border-top-left-radius: 4px;
   box-shadow: 0 0 10px rgba(0,0,0,0.5);
+  pointer-events: auto;
 }
 
 .debug-panel-header {

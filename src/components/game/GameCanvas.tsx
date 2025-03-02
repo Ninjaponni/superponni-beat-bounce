@@ -109,10 +109,31 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       window.addEventListener('resize', handleResize);
       
       const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.code === 'Space' && gameState === 'playing' && window.bassController) {
+        if (event.code === 'Space' && gameState === 'playing') {
           console.log("Space key pressed - GameCanvas event handler");
           try {
-            window.bassController.handleHit('good');
+            if (window.checkHit) {
+              const result = window.checkHit();
+              console.log("Space key hit result:", result);
+              
+              // Dispatch event for visual feedback
+              if (result && result.hit) {
+                const event = new CustomEvent('game:hit', { 
+                  detail: { 
+                    quality: result.quality,
+                    timing: result.timing,
+                    targetElement: document.querySelector('.beat-visualizer')
+                  } 
+                });
+                window.dispatchEvent(event);
+              }
+            } else {
+              console.warn("window.checkHit is not available");
+              // Fallback direct bass controller hit
+              if (window.bassController) {
+                window.bassController.handleHit('good');
+              }
+            }
           } catch (error) {
             console.error("Error handling key press:", error);
           }
