@@ -2,6 +2,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import './BeatVisualizer.css';
 import AudioManager from '@/utils/AudioManager';
+import RhythmEngine from '@/utils/RhythmEngine';
 import { toast } from 'sonner';
 
 interface BeatVisualizerProps {
@@ -14,10 +15,24 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
   const [isActive, setIsActive] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const [audioManager, setAudioManager] = useState<AudioManager | null>(null);
+  const [rhythmEngine, setRhythmEngine] = useState<RhythmEngine | null>(null);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
-    setAudioManager(AudioManager.getInstance());
+    const audio = AudioManager.getInstance();
+    setAudioManager(audio);
+    
+    // Create or get RhythmEngine
+    let engine: RhythmEngine;
+    if (window.rhythmEngine) {
+      engine = window.rhythmEngine;
+      console.log("Using existing RhythmEngine instance");
+    } else {
+      engine = new RhythmEngine();
+      window.rhythmEngine = engine;
+      console.log("Created new RhythmEngine instance");
+    }
+    setRhythmEngine(engine);
     
     try {
       // Create container for beat circles if it doesn't exist
@@ -26,12 +41,13 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         return;
       }
       
-      // Get AudioManager instance
-      const audio = AudioManager.getInstance();
-      
       // Get BPM info
       const { bpm, interval: beatInterval } = audio.getBeatInfo();
       console.log(`Using BPM: ${bpm}, interval: ${beatInterval}ms`);
+      
+      // Initialize rhythm engine with the correct BPM
+      engine.reset();
+      engine.start(performance.now());
       
       // Create beat track (the line)
       const track = document.createElement('div');
@@ -43,7 +59,7 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       targetZone.className = 'target-zone';
       containerRef.current.appendChild(targetZone);
       
-      // Sørg for at container har riktige dimensjoner
+      // Calculate container dimensions
       const containerWidth = window.innerWidth;
       
       // Calculate speed and timing based on BPM
@@ -59,7 +75,7 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       // Start generating beats
       setIsActive(true);
       
-      // Holder styr på aktive beatCircles
+      // Track active beat circles
       const activeBeats: HTMLElement[] = [];
       
       // Generate beat circles function
@@ -105,96 +121,92 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         setShowInstructions(false);
       }, 8000);
       
-      // Handle player input (space or click)
+      // Improved hit detection using RhythmEngine
       const checkHit = () => {
         try {
           if (!containerRef.current) return { hit: false, quality: 'miss' };
           
-          // Get all active beat circles
-          if (activeBeats.length === 0) return { hit: false, quality: 'miss' };
+          // Get current time from AudioManager
+          const currentTime = audio.getCurrentTime() * 1000;
           
-          // Get target zone position
-          const targetRect = targetZone.getBoundingClientRect();
-          const targetCenterX = targetRect.left + targetRect.width / 2;
+          // Use RhythmEngine for precise hit detection
+          const result = engine.checkPlayerInput(currentTime);
           
-          // Find closest beat to target
-          let closestBeat = null;
-          let closestDistance = Infinity;
-          
-          activeBeats.forEach(beat => {
-            const beatRect = beat.getBoundingClientRect();
-            const beatCenterX = beatRect.left + beatRect.width / 2;
-            const distance = Math.abs(beatCenterX - targetCenterX);
+          // Process hit result
+          if (result.hit) {
+            // Find the closest visual beat for visual feedback
+            let closestBeat = null;
+            let closestDistance = Infinity;
             
-            if (distance < closestDistance) {
-              closestDistance = distance;
-              closestBeat = beat;
+            if (activeBeats.length > 0) {
+              // Get target zone position
+              const targetRect = targetZone.getBoundingClientRect();
+              const targetCenterX = targetRect.left + targetRect.width / 2;
+              
+              activeBeats.forEach(beat => {
+                const beatRect = beat.getBoundingClientRect();
+                const beatCenterX = beatRect.left + beatRect.width / 2;
+                const distance = Math.abs(beatCenterX - targetCenterX);
+                
+                if (distance < closestDistance) {
+                  closestDistance = distance;
+                  closestBeat = beat;
+                }
+              });
             }
-          });
-          
-          // Determine hit quality based on distance
-          if (closestBeat && closestDistance < 100) {
-            // Get precise quality
-            let quality = 'miss';
+            
+            // Quality mapping
+            const quality = result.score;
             let hitText = '';
             
-            if (closestDistance < 20) {
-              quality = 'perfect';
+            // Apply visual feedback based on hit quality
+            if (quality === 'perfect') {
               hitText = 'PERFECT!';
-              closestBeat.classList.add('hit-perfect');
-              
-              // Visual feedback on target zone
+              if (closestBeat) closestBeat.classList.add('hit-perfect');
               targetZone.classList.add('target-hit-perfect');
               setTimeout(() => targetZone.classList.remove('target-hit-perfect'), 200);
-              
-              // Play sound for perfect hit
-              audio.playHitSound('perfect');
-            } else if (closestDistance < 50) {
-              quality = 'good';
+            } else if (quality === 'good') {
               hitText = 'GOOD!';
-              closestBeat.classList.add('hit-good');
-              
+              if (closestBeat) closestBeat.classList.add('hit-good');
               targetZone.classList.add('target-hit-good');
               setTimeout(() => targetZone.classList.remove('target-hit-good'), 200);
-              
-              // Play sound for good hit
-              audio.playHitSound('good');
             } else {
-              quality = 'ok';
+              // 'ok' quality
               hitText = 'OK';
-              closestBeat.classList.add('hit-ok');
-              
+              if (closestBeat) closestBeat.classList.add('hit-ok');
               targetZone.classList.add('target-hit-ok');
               setTimeout(() => targetZone.classList.remove('target-hit-ok'), 200);
-              
-              // Play sound for ok hit
-              audio.playHitSound('ok');
             }
             
-            // Display hit text
-            const hitTextEl = document.createElement('div');
-            hitTextEl.className = `hit-text ${quality}`;
-            hitTextEl.textContent = hitText;
-            hitTextEl.style.left = closestBeat.style.left;
-            containerRef.current.appendChild(hitTextEl);
+            // Play hit sound
+            audio.playHitSound(quality);
             
-            // Remove hit text after animation
-            setTimeout(() => {
-              if (hitTextEl.parentNode) {
-                hitTextEl.parentNode.removeChild(hitTextEl);
-              }
-            }, 1000);
-            
-            // Remove the beat circle
-            setTimeout(() => {
-              if (closestBeat && closestBeat.parentNode) {
-                closestBeat.parentNode.removeChild(closestBeat);
-                const index = activeBeats.indexOf(closestBeat);
-                if (index !== -1) {
-                  activeBeats.splice(index, 1);
+            // Display hit text if we have a visual beat
+            if (closestBeat && containerRef.current) {
+              const hitTextEl = document.createElement('div');
+              hitTextEl.className = `hit-text ${quality}`;
+              hitTextEl.textContent = hitText;
+              hitTextEl.style.left = closestBeat.style.left;
+              containerRef.current.appendChild(hitTextEl);
+              
+              // Remove hit text after animation
+              setTimeout(() => {
+                if (hitTextEl.parentNode) {
+                  hitTextEl.parentNode.removeChild(hitTextEl);
                 }
-              }
-            }, 100);
+              }, 1000);
+              
+              // Remove the beat circle
+              setTimeout(() => {
+                if (closestBeat && closestBeat.parentNode) {
+                  closestBeat.parentNode.removeChild(closestBeat);
+                  const index = activeBeats.indexOf(closestBeat);
+                  if (index !== -1) {
+                    activeBeats.splice(index, 1);
+                  }
+                }
+              }, 100);
+            }
             
             // Trigger hit on bass controller if available
             if (window.bassController && typeof window.bassController.handleHit === 'function') {
@@ -202,7 +214,7 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
             } else if (window.gameBass) {
               // Simple animation if no controller
               const force = quality === 'perfect' ? 5 : 
-                          quality === 'good' ? 3 : 1.5;
+                        quality === 'good' ? 3 : 1.5;
               
               window.gameBass.position.y += force * 0.1;
               console.log(`Bass hit with quality: ${quality}, force: ${force}`);
@@ -228,23 +240,23 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
               }
             }
             
-            console.log(`Hit: ${quality}, distance: ${closestDistance.toFixed(2)}px`);
+            console.log(`Hit: ${quality}, beat index: ${result.beatIndex}`);
             return { hit: true, quality };
-          }
-          
-          // Miss
-          if (window.gameState) {
-            window.gameState.combo = 0;
-            audio.playSound('miss', 0.6);
-            
-            // Update UI
-            const comboElement = document.querySelector('.combo');
-            if (comboElement) {
-              comboElement.textContent = `Combo: 0`;
+          } else {
+            // Miss
+            if (window.gameState) {
+              window.gameState.combo = 0;
+              audio.playSound('miss', 0.6);
+              
+              // Update UI
+              const comboElement = document.querySelector('.combo');
+              if (comboElement) {
+                comboElement.textContent = `Combo: 0`;
+              }
             }
+            
+            return { hit: false, quality: 'miss' };
           }
-          
-          return { hit: false, quality: 'miss' };
         } catch (error) {
           console.error("Error checking hit:", error);
           return { hit: false, quality: 'miss' };

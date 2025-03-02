@@ -272,6 +272,7 @@ export class AudioManager {
     if (window.rhythmEngine) {
       try {
         window.rhythmEngine.synchronize(startTime, this.beatInterval);
+        console.log("RhythmEngine synchronized with AudioManager");
       } catch (error) {
         console.warn("Failed to synchronize with rhythm engine:", error);
       }

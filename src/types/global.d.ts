@@ -1,35 +1,31 @@
 
+// Extend Window interface with our global objects
 interface Window {
-  _debugLogs: Array<{
-    level: "info" | "error" | "warn";
-    message: string;
-    timestamp: Date;
-  }>;
-  checkHit?: () => { hit: boolean; quality: string };
+  gameScene?: THREE.Scene;
+  checkHit?: () => { hit: boolean, quality: string };
+  bassController?: import('../lib/BassController').BassController;
+  gameBass?: THREE.Object3D;
   gameState?: {
     score: number;
     combo: number;
     isPlaying: boolean;
   };
-  gameScene?: THREE.Scene;
-  gameBass?: THREE.Object3D;
-  bassController?: any;
-  gameAnimationFunctions?: Array<(deltaTime: number) => void>;
   gameConfig?: {
     physics: {
       bass: {
-        enabled?: boolean;
-        maxSpeed: number;
+        enabled: boolean;
         gravity: number;
         airResistance: number;
         bounceFactor: number;
-      }
+        maxSpeed: number;
+      };
     };
     difficulty: string;
   };
-  beatGenerator?: NodeJS.Timeout;
+  gameAnimationFunctions?: Array<() => void>;
   AudioManager?: {
-    getInstance: () => import('../utils/AudioManager').AudioManager;
+    getInstance: () => import('../utils/AudioManager').default;
   };
-  rhythmEngine?: any; // Add rhythmEngine property
+  rhythmEngine?: import('../utils/RhythmEngine').default;
+  _debugLogs?: string[];
 }

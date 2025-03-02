@@ -1,5 +1,5 @@
 
-export type BeatScore = 'perfect' | 'good' | 'miss';
+export type BeatScore = 'perfect' | 'good' | 'ok' | 'miss';
 
 export interface Beat {
   time: number;
@@ -26,6 +26,8 @@ export class RhythmEngine {
     
     // Generate beats based on the song
     this.generateBeats();
+    
+    console.log(`RhythmEngine started at ${startTime}ms with BPM ${this.bpm}`);
   }
   
   // Generate beats based on the song
@@ -51,6 +53,21 @@ export class RhythmEngine {
         score: ''
       });
     }
+    
+    console.log(`Generated ${this.beats.length} beats starting at ${this.nextBeatTime}ms`);
+  }
+  
+  // Synchronize with audio system
+  synchronize(audioStartTime: number, beatIntervalMs: number) {
+    this.startTime = audioStartTime;
+    this.beatInterval = beatIntervalMs;
+    this.bpm = 60000 / beatIntervalMs;
+    
+    // Regenerate beats with new timing
+    this.nextBeatTime = audioStartTime;
+    this.generateBeats();
+    
+    console.log(`RhythmEngine synchronized to audio at ${audioStartTime}ms with interval ${beatIntervalMs.toFixed(2)}ms (${this.bpm.toFixed(1)} BPM)`);
   }
   
   // Check player input
@@ -86,7 +103,7 @@ export class RhythmEngine {
     } else if (closestBeatDiff < 150) {
       score = 'good';
     } else if (closestBeatDiff < 300) {
-      score = 'good'; // Changed from 'ok' to match our score types
+      score = 'ok';
     } else {
       score = 'miss';
     }
@@ -97,6 +114,7 @@ export class RhythmEngine {
       this.beats[closestBeatIndex].score = score;
     }
     
+    console.log(`Beat check: diff=${closestBeatDiff.toFixed(2)}ms, score=${score}, index=${closestBeatIndex}`);
     return { hit: score !== 'miss', score, beatIndex: closestBeatIndex };
   }
   
@@ -106,6 +124,11 @@ export class RhythmEngine {
       const timeDiff = beat.time - currentTime;
       return timeDiff > -1000 && timeDiff < visibilityWindow;
     });
+  }
+  
+  // Get current BPM
+  getBPM(): number {
+    return this.bpm;
   }
   
   // Reset engine
