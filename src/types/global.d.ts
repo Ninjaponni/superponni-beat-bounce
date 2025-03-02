@@ -17,8 +17,8 @@ interface Window {
   gameAnimationFunctions?: Array<(deltaTime: number) => void>;
   gameConfig?: {
     physics: {
-      lov: {
-        enabled: boolean;
+      bass: {
+        enabled?: boolean;
         maxSpeed: number;
         gravity: number;
         airResistance: number;
