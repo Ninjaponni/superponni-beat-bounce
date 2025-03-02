@@ -1,37 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import './BeatVisualizer.css';
-import AudioManager from '@/utils/AudioManager';
-import RhythmEngine from '@/utils/RhythmEngine';
+import useBeatVisualizer from '@/hooks/useBeatVisualizer';
 import { toast } from 'sonner';
 
-interface BeatVisualizerProps {
-  beats?: any[];
-  currentTime?: number;
-}
-
-const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [isActive, setIsActive] = useState(false);
+const BeatVisualizer: React.FC = () => {
+  const { containerRef, isActive, audioManager } = useBeatVisualizer();
   const [showInstructions, setShowInstructions] = useState(true);
-  const [audioManager, setAudioManager] = useState<AudioManager | null>(null);
-  const [rhythmEngine, setRhythmEngine] = useState<RhythmEngine | null>(null);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
-    const audio = AudioManager.getInstance();
-    setAudioManager(audio);
-    
-    // Create or get RhythmEngine
-    let engine: RhythmEngine;
-    if (window.rhythmEngine) {
-      engine = window.rhythmEngine;
-      console.log("Using existing RhythmEngine instance");
-    } else {
-      engine = new RhythmEngine();
-      window.rhythmEngine = engine;
-      console.log("Created new RhythmEngine instance");
-    }
-    setRhythmEngine(engine);
     
     try {
       // Create container for beat circles if it doesn't exist
@@ -39,14 +17,6 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         console.warn("BeatVisualizer container not available");
         return;
       }
-      
-      // Get BPM info
-      const { bpm, interval: beatInterval } = audio.getBeatInfo();
-      console.log(`Using BPM: ${bpm}, interval: ${beatInterval}ms`);
-      
-      // Initialize rhythm engine with the correct BPM
-      engine.reset();
-      engine.start(performance.now());
       
       // Create beat track (the line)
       const track = document.createElement('div');
@@ -57,6 +27,14 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       const targetZone = document.createElement('div');
       targetZone.className = 'target-zone';
       containerRef.current.appendChild(targetZone);
+      
+      // Get BPM info and audio manager
+      if (!audioManager) {
+        toast.error("Lydmotor ikke tilgjengelig");
+        return;
+      }
+      
+      const { bpm, interval: beatInterval } = audioManager.getBeatInfo();
       
       // Calculate container dimensions
       const containerWidth = window.innerWidth;
@@ -70,9 +48,6 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       
       console.log(`Beat generation started with interval ${beatInterval.toFixed(0)}ms (${bpm} BPM)`);
       console.log(`Time to target: ${timeToTargetMs.toFixed(0)}ms`);
-      
-      // Start generating beats
-      setIsActive(true);
       
       // Track active beat circles
       const activeBeats: HTMLElement[] = [];
@@ -89,9 +64,6 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         // Add to active beats
         activeBeats.push(beatCircle);
         
-        // Log for debugging
-        console.log(`Beat circle created, will reach target in ${timeToTargetMs.toFixed(0)}ms`);
-        
         // Remove beat circle after animation completes
         setTimeout(() => {
           if (beatCircle.parentNode) {
@@ -105,12 +77,12 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       };
       
       // Register with AudioManager to create beat circles in sync with music
-      const beatCallback = (time: number) => {
+      const beatCallback = () => {
         createBeatCircle();
       };
       
       // Register beat callback with AudioManager
-      audio.onBeat(beatCallback);
+      audioManager.onBeat(beatCallback);
       
       // Create first beat immediately for visual reference
       createBeatCircle();
@@ -120,163 +92,92 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         setShowInstructions(false);
       }, 8000);
       
-      // Improved hit detection using RhythmEngine
-      const checkHit = () => {
-        try {
-          if (!containerRef.current) return { hit: false, quality: 'miss' };
+      // Event listener for hit visual feedback
+      const handleHitEvent = (event: CustomEvent) => {
+        const { quality, targetElement } = event.detail;
+        
+        if (!quality || !targetElement) return;
+        
+        // Find closest visual beat
+        let closestBeat = null;
+        let closestDistance = Infinity;
+        
+        if (activeBeats.length > 0) {
+          // Get target zone position
+          const targetRect = targetZone.getBoundingClientRect();
+          const targetCenterX = targetRect.left + targetRect.width / 2;
           
-          // Get current time from AudioManager
-          const currentTime = audio.getCurrentTime() * 1000;
+          activeBeats.forEach(beat => {
+            const beatRect = beat.getBoundingClientRect();
+            const beatCenterX = beatRect.left + beatRect.width / 2;
+            const distance = Math.abs(beatCenterX - targetCenterX);
+            
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestBeat = beat;
+            }
+          });
+        }
+        
+        // Apply visual feedback based on hit quality
+        let hitText = '';
+        
+        if (quality === 'perfect') {
+          hitText = 'PERFECT!';
+          if (closestBeat) closestBeat.classList.add('hit-perfect');
+          targetZone.classList.add('target-hit-perfect');
+          setTimeout(() => targetZone.classList.remove('target-hit-perfect'), 200);
+        } else if (quality === 'good') {
+          hitText = 'GOOD!';
+          if (closestBeat) closestBeat.classList.add('hit-good');
+          targetZone.classList.add('target-hit-good');
+          setTimeout(() => targetZone.classList.remove('target-hit-good'), 200);
+        } else if (quality === 'ok') {
+          hitText = 'OK';
+          if (closestBeat) closestBeat.classList.add('hit-ok');
+          targetZone.classList.add('target-hit-ok');
+          setTimeout(() => targetZone.classList.remove('target-hit-ok'), 200);
+        }
+        
+        // Display hit text if we have a visual beat
+        if (closestBeat && containerRef.current && hitText) {
+          const hitTextEl = document.createElement('div');
+          hitTextEl.className = `hit-text ${quality}`;
+          hitTextEl.textContent = hitText;
+          hitTextEl.style.left = closestBeat.style.left;
+          containerRef.current.appendChild(hitTextEl);
           
-          // Use RhythmEngine for precise hit detection
-          const result = engine.checkPlayerInput(currentTime);
+          // Remove hit text after animation
+          setTimeout(() => {
+            if (hitTextEl.parentNode) {
+              hitTextEl.parentNode.removeChild(hitTextEl);
+            }
+          }, 1000);
           
-          // Process hit result
-          if (result.hit) {
-            // Find the closest visual beat for visual feedback
-            let closestBeat = null;
-            let closestDistance = Infinity;
-            
-            if (activeBeats.length > 0) {
-              // Get target zone position
-              const targetRect = targetZone.getBoundingClientRect();
-              const targetCenterX = targetRect.left + targetRect.width / 2;
-              
-              activeBeats.forEach(beat => {
-                const beatRect = beat.getBoundingClientRect();
-                const beatCenterX = beatRect.left + beatRect.width / 2;
-                const distance = Math.abs(beatCenterX - targetCenterX);
-                
-                if (distance < closestDistance) {
-                  closestDistance = distance;
-                  closestBeat = beat;
-                }
-              });
-            }
-            
-            // Quality mapping
-            const quality = result.score;
-            let hitText = '';
-            
-            // Apply visual feedback based on hit quality
-            if (quality === 'perfect') {
-              hitText = 'PERFECT!';
-              if (closestBeat) closestBeat.classList.add('hit-perfect');
-              targetZone.classList.add('target-hit-perfect');
-              setTimeout(() => targetZone.classList.remove('target-hit-perfect'), 200);
-            } else if (quality === 'good') {
-              hitText = 'GOOD!';
-              if (closestBeat) closestBeat.classList.add('hit-good');
-              targetZone.classList.add('target-hit-good');
-              setTimeout(() => targetZone.classList.remove('target-hit-good'), 200);
-            } else {
-              // 'ok' quality
-              hitText = 'OK';
-              if (closestBeat) closestBeat.classList.add('hit-ok');
-              targetZone.classList.add('target-hit-ok');
-              setTimeout(() => targetZone.classList.remove('target-hit-ok'), 200);
-            }
-            
-            // Play hit sound
-            audio.playHitSound(quality);
-            
-            // Display hit text if we have a visual beat
-            if (closestBeat && containerRef.current) {
-              const hitTextEl = document.createElement('div');
-              hitTextEl.className = `hit-text ${quality}`;
-              hitTextEl.textContent = hitText;
-              hitTextEl.style.left = closestBeat.style.left;
-              containerRef.current.appendChild(hitTextEl);
-              
-              // Remove hit text after animation
-              setTimeout(() => {
-                if (hitTextEl.parentNode) {
-                  hitTextEl.parentNode.removeChild(hitTextEl);
-                }
-              }, 1000);
-              
-              // Remove the beat circle
-              setTimeout(() => {
-                if (closestBeat && closestBeat.parentNode) {
-                  closestBeat.parentNode.removeChild(closestBeat);
-                  const index = activeBeats.indexOf(closestBeat);
-                  if (index !== -1) {
-                    activeBeats.splice(index, 1);
-                  }
-                }
-              }, 100);
-            }
-            
-            // Trigger hit on bass controller if available
-            if (window.bassController && typeof window.bassController.handleHit === 'function') {
-              window.bassController.handleHit(quality);
-            } else if (window.gameBass) {
-              // Simple animation if no controller
-              const force = quality === 'perfect' ? 5 : 
-                        quality === 'good' ? 3 : 1.5;
-              
-              window.gameBass.position.y += force * 0.1;
-              console.log(`Bass hit with quality: ${quality}, force: ${force}`);
-            }
-            
-            // Update score
-            if (window.gameState) {
-              const points = quality === 'perfect' ? 100 : 
-                            quality === 'good' ? 50 : 10;
-              
-              window.gameState.score = (window.gameState.score || 0) + points;
-              window.gameState.combo = (window.gameState.combo || 0) + 1;
-              
-              // Update UI if it exists
-              const scoreElement = document.querySelector('.score');
-              if (scoreElement) {
-                scoreElement.textContent = `Score: ${window.gameState.score}`;
-              }
-              
-              const comboElement = document.querySelector('.combo');
-              if (comboElement) {
-                comboElement.textContent = `Combo: ${window.gameState.combo}`;
+          // Remove the beat circle
+          setTimeout(() => {
+            if (closestBeat && closestBeat.parentNode) {
+              closestBeat.parentNode.removeChild(closestBeat);
+              const index = activeBeats.indexOf(closestBeat);
+              if (index !== -1) {
+                activeBeats.splice(index, 1);
               }
             }
-            
-            console.log(`Hit: ${quality}, beat index: ${result.beatIndex}`);
-            return { hit: true, quality };
-          } else {
-            // Miss
-            if (window.gameState) {
-              window.gameState.combo = 0;
-              audio.playSound('miss', 0.6);
-              
-              // Update UI
-              const comboElement = document.querySelector('.combo');
-              if (comboElement) {
-                comboElement.textContent = `Combo: 0`;
-              }
-            }
-            
-            return { hit: false, quality: 'miss' };
-          }
-        } catch (error) {
-          console.error("Error checking hit:", error);
-          return { hit: false, quality: 'miss' };
+          }, 100);
         }
       };
       
-      // Add global access to checkHit
-      window.checkHit = checkHit;
+      // Register for hit events
+      window.addEventListener('game:hit', handleHitEvent as EventListener);
       
       // Clean up
       return () => {
-        setIsActive(false);
+        // Remove event listener
+        window.removeEventListener('game:hit', handleHitEvent as EventListener);
         
         // Remove beat callback from AudioManager
-        if (audio) {
-          audio.offBeat(beatCallback);
-        }
-        
-        // Remove global reference to checkHit
-        if (window.checkHit === checkHit) {
-          delete window.checkHit;
+        if (audioManager) {
+          audioManager.offBeat(beatCallback);
         }
         
         // Remove all active beats
@@ -294,12 +195,23 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       console.error("Error in BeatVisualizer:", error);
       toast.error("Problem med visualisering av bass-rytme");
     }
-  }, []);
+  }, [containerRef, isActive, audioManager]);
   
-  // Handle player input (space or click)
+  // Handle player input
   const checkHit = () => {
     if (typeof window.checkHit === 'function') {
-      window.checkHit();
+      const result = window.checkHit();
+      
+      // Dispatch event for visual feedback
+      if (result.hit) {
+        const event = new CustomEvent('game:hit', { 
+          detail: { 
+            quality: result.quality,
+            targetElement: containerRef.current
+          } 
+        });
+        window.dispatchEvent(event);
+      }
     }
   };
   

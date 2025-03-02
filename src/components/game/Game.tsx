@@ -1,203 +1,31 @@
-import React, { useState, useEffect } from 'react';
+
+import React from 'react';
 import GameCanvas from './GameCanvas';
 import { Button } from "@/components/ui/button";
 import Bass from './Bass';
 import DebugPanel from '@/components/debug/DebugPanel';
 import BeatVisualizer from './BeatVisualizer';
-import { toast } from "sonner";
-import AudioManager from '@/utils/AudioManager';
+import useGameState from '@/hooks/useGameState';
+import useGameInput from '@/hooks/useGameInput';
 
 interface GameProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
 }
 
 const Game = ({ onGameOver }: GameProps) => {
-  const [gameState, setGameState] = useState<'start' | 'countdown' | 'playing' | 'gameover'>('start');
-  const [countdownNumber, setCountdownNumber] = useState(3);
-  const [score, setScore] = useState(0);
-  const [loadedComponents, setLoadedComponents] = useState({
-    bass: false,
-    beatVisualizer: false
-  });
-  const [showInstructions, setShowInstructions] = useState(true);
+  const { 
+    gameState, 
+    countdownNumber, 
+    score, 
+    loadedComponents, 
+    showInstructions,
+    startGame,
+    handleGameOver,
+    handleRestart
+  } = useGameState({ onGameOver });
   
-  // Initialize audio when component mounts
-  useEffect(() => {
-    const initAudio = async () => {
-      try {
-        const audioManager = AudioManager.getInstance();
-        
-        // Preload audio files
-        await audioManager.loadAllSounds();
-        
-        // Make AudioManager globally accessible
-        window.AudioManager = { getInstance: () => audioManager };
-        
-        console.log("Audio successfully initialized");
-      } catch (error) {
-        console.error("Error initializing audio:", error);
-      }
-    };
-    
-    // Initialize debug logs if not already done
-    if (!window._debugLogs) {
-      window._debugLogs = [];
-    }
-    
-    initAudio();
-  }, []);
-  
-  // Simple start game function
-  const startGame = () => {
-    console.log("Starting countdown");
-    setGameState('countdown');
-    setCountdownNumber(3);
-    
-    // Simulate countdown with setTimeout
-    setTimeout(() => {
-      setCountdownNumber(2);
-      setTimeout(() => {
-        setCountdownNumber(1);
-        setTimeout(() => {
-          console.log("Countdown finished, starting game");
-          handleCountdownComplete();
-        }, 1000);
-      }, 1000);
-    }, 1000);
-  };
-  
-  // Handle countdown completion
-  const handleCountdownComplete = () => {
-    try {
-      console.log('Countdown complete, starting game');
-      
-      // Create global animation functions array
-      window.gameAnimationFunctions = [];
-      
-      // Initialize game state
-      window.gameState = {
-        score: 0,
-        combo: 0,
-        isPlaying: true
-      };
-      
-      // Create global config with 'bass' property instead of 'lov'
-      window.gameConfig = {
-        physics: {
-          bass: {
-            enabled: true,
-            gravity: 9.8,
-            airResistance: 0.99,
-            bounceFactor: 0.8,
-            maxSpeed: 5
-          }
-        },
-        difficulty: 'normal'
-      };
-      
-      // Start the game
-      setGameState('playing');
-      setShowInstructions(true);
-      
-      // Hide instructions after 8 seconds
-      setTimeout(() => {
-        setShowInstructions(false);
-      }, 8000);
-      
-      // Load components gradually
-      setTimeout(() => {
-        console.log("Loading Bass component");
-        setLoadedComponents(prev => ({ ...prev, bass: true }));
-        
-        setTimeout(() => {
-          console.log("Loading BeatVisualizer component");
-          setLoadedComponents(prev => ({ ...prev, beatVisualizer: true }));
-          
-          // Start background music
-          try {
-            const audioManager = AudioManager.getInstance();
-            audioManager.playMusic('music', 0.7);
-          } catch (error) {
-            console.error("Failed to start music:", error);
-          }
-        }, 500);
-      }, 500);
-    } catch (error) {
-      console.error("Error starting game:", error);
-      // Continue to playing state even if there's an error
-      setGameState('playing');
-    }
-  };
-  
-  // Handle game over
-  const handleGameOver = () => {
-    setGameState('gameover');
-    
-    // Stop music if playing
-    try {
-      const audioManager = AudioManager.getInstance();
-      audioManager.stopMusic();
-    } catch (error) {
-      console.error("Error stopping music:", error);
-    }
-    
-    onGameOver(score);
-  };
-  
-  // Handle restart
-  const handleRestart = () => {
-    setGameState('start');
-    setScore(0);
-    setLoadedComponents({
-      bass: false,
-      beatVisualizer: false
-    });
-  };
-
-  // Update score from window.gameState
-  useEffect(() => {
-    if (gameState === 'playing' && window.gameState) {
-      const scoreUpdateInterval = setInterval(() => {
-        if (window.gameState) {
-          setScore(window.gameState.score);
-        }
-      }, 100);
-      
-      return () => clearInterval(scoreUpdateInterval);
-    }
-  }, [gameState]);
-
-  // Handle player input
-  useEffect(() => {
-    if (gameState !== 'playing') return;
-    
-    // Handle space key
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.code === 'Space') {
-        event.preventDefault();
-        if (typeof window.checkHit === 'function') {
-          window.checkHit();
-        }
-      }
-    };
-    
-    // Handle click events (if not handled by BeatVisualizer)
-    const handleClick = () => {
-      if (typeof window.checkHit === 'function') {
-        window.checkHit();
-      }
-    };
-    
-    // Add event listeners
-    window.addEventListener('keydown', handleKeyDown);
-    document.addEventListener('click', handleClick);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('click', handleClick);
-    };
-  }, [gameState]);
+  // Setup input handlers
+  useGameInput({ gameState });
 
   return (
     <div className="game-container relative w-screen h-screen overflow-hidden">
