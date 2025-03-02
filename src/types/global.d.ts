@@ -1,5 +1,6 @@
 
 import { RhythmEngine } from '../utils/RhythmEngine';
+import AudioManager from '../utils/AudioManager';
 
 interface GameConfig {
   physics: {
@@ -25,6 +26,12 @@ interface LogEntry {
   timestamp: Date;
 }
 
+interface GameState {
+  score: number;
+  combo: number;
+  isPlaying: boolean;
+}
+
 declare global {
   interface Window {
     gameConfig?: GameConfig;
@@ -34,5 +41,12 @@ declare global {
     bassController?: BassController;
     rhythmEngine?: RhythmEngine;
     _debugLogs?: Array<LogEntry>;
+    
+    // Add missing global properties that caused TypeScript errors
+    gameState?: GameState;
+    checkHit?: () => { hit: boolean; quality: string };
+    AudioManager?: {
+      getInstance: () => AudioManager;
+    };
   }
 }

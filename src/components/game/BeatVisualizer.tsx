@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import './BeatVisualizer.css';
 import AudioManager from '@/utils/AudioManager';
@@ -275,7 +274,10 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
           audio.offBeat(beatCallback);
         }
         
-        delete window.checkHit;
+        // Remove global reference to checkHit
+        if (window.checkHit === checkHit) {
+          delete window.checkHit;
+        }
         
         // Remove all active beats
         activeBeats.forEach(beat => {
