@@ -16,34 +16,28 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
   const animationFrameRef = useRef<number | null>(null);
   const clockRef = useRef<THREE.Clock>(new THREE.Clock());
   
-  // Setup the basic Three.js scene
   useEffect(() => {
     if (!canvasRef.current) return;
     
     console.log("Setting up basic Three.js scene");
     
     try {
-      // Basic scene setup
       const scene = new THREE.Scene();
       scene.background = new THREE.Color(0x87CEEB); // Sky blue background
       sceneRef.current = scene;
       
-      // Make scene available globally for other components
       window.gameScene = scene;
       
-      // Setup camera
       const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
       camera.position.set(0, 1.5, 5);
       camera.lookAt(0, 0, 0);
       cameraRef.current = camera;
       
-      // Setup renderer
       const renderer = new THREE.WebGLRenderer({ antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       canvasRef.current.appendChild(renderer.domElement);
       rendererRef.current = renderer;
       
-      // Add lights
       const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
       scene.add(ambientLight);
       
@@ -51,7 +45,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       directionalLight.position.set(1, 1, 1);
       scene.add(directionalLight);
       
-      // Add a simple green ground
       const planeGeometry = new THREE.PlaneGeometry(20, 20);
       const planeMaterial = new THREE.MeshBasicMaterial({ color: 0x3CB371, side: THREE.DoubleSide });
       const plane = new THREE.Mesh(planeGeometry, planeMaterial);
@@ -59,7 +52,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       plane.position.y = -0.5;
       scene.add(plane);
       
-      // Add a simple character (blue box) if not using Character component
       const characterGeometry = new THREE.BoxGeometry(0.5, 1, 0.5);
       const characterMaterial = new THREE.MeshStandardMaterial({ color: 0x1E90FF });
       const character = new THREE.Mesh(characterGeometry, characterMaterial);
@@ -68,16 +60,13 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       scene.add(character);
       characterRef.current = character;
       
-      // Initialize animation functions array
       window.gameAnimationFunctions = [];
       
-      // Animation loop
       const animate = () => {
         if (!sceneRef.current || !cameraRef.current || !rendererRef.current) return;
         
         const deltaTime = clockRef.current.getDelta();
         
-        // Call all registered animation functions
         if (window.gameAnimationFunctions && gameState === 'playing') {
           window.gameAnimationFunctions.forEach(fn => {
             try {
@@ -88,7 +77,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
           });
         }
         
-        // Update bass controller if it exists
         if (window.bassController && gameState === 'playing') {
           try {
             window.bassController.update(deltaTime);
@@ -97,23 +85,18 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
           }
         }
         
-        // Rotate character slightly when in playing state
         if (characterRef.current && gameState === 'playing') {
           characterRef.current.rotation.y += 0.01;
         }
         
-        // Render scene
         rendererRef.current.render(sceneRef.current, cameraRef.current);
         
-        // Continue animation loop
         animationFrameRef.current = requestAnimationFrame(animate);
       };
       
-      // Start animation loop
       clockRef.current.start();
       animate();
       
-      // Handle window resize
       const handleResize = () => {
         if (!cameraRef.current || !rendererRef.current) return;
         
@@ -124,12 +107,10 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       
       window.addEventListener('resize', handleResize);
       
-      // Setup keyboard event for bass kicking
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.code === 'Space' && gameState === 'playing' && window.bassController) {
           try {
-            // Handle the hit in the bass controller
-            window.bassController.handleHit();
+            window.bassController.handleHit('good');
           } catch (error) {
             console.error("Error handling key press:", error);
           }
@@ -138,7 +119,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       
       window.addEventListener('keydown', handleKeyDown);
       
-      // Cleanup function
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('keydown', handleKeyDown);
@@ -155,7 +135,6 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
           rendererRef.current.dispose();
         }
         
-        // Clean up global references
         delete window.gameScene;
         delete window.gameBass;
         delete window.gameAnimationFunctions;
