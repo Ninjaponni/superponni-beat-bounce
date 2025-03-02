@@ -1,47 +1,75 @@
+// src/components/game/GameLogic.tsx
 
-import { useState, useRef, useEffect } from 'react';
-import * as THREE from 'three';
-import AssetLoader from '@/utils/AssetLoader';
-import RhythmEngine, { Beat } from '@/utils/RhythmEngine';
-import AudioManager from '@/utils/AudioManager';
-import BeatVisualizer from './BeatVisualizer';
-import ScoreDisplay from './ScoreDisplay';
-import Countdown from './Countdown';
-import Character from './Character';
-import Bass from './Bass';
+import React, { useState, useEffect } from 'react';
 import GameCanvas from './GameCanvas';
+import { Button } from "@/components/ui/button";
+import Bass from './Bass';
+import DebugPanel from '@/components/debug/DebugPanel';
+import BeatVisualizer from './BeatVisualizer';
 import { toast } from "sonner";
-import useGameBeatHandler from '@/hooks/useGameBeatHandler';
-import useGameInitializer from '@/hooks/useGameInitializer';
+import AudioManager from '@/utils/AudioManager';
 
 interface GameLogicProps {
   onGameOver: (score: number, perfectHits?: number, maxCombo?: number) => void;
 }
 
 const GameLogic = ({ onGameOver }: GameLogicProps) => {
-  const [loading, setLoading] = useState(true);
-  const [countdown, setCountdown] = useState(3);
-  const [gameStarted, setGameStarted] = useState(false);
+  const [gameState, setGameState] = useState<'start' | 'countdown' | 'playing' | 'gameover'>('start');
+  const [countdownNumber, setCountdownNumber] = useState(3);
   const [score, setScore] = useState(0);
-  const [combo, setCombo] = useState(0);
-  const [missCount, setMissCount] = useState(0);
-  const [visibleBeats, setVisibleBeats] = useState<Beat[]>([]);
-  const [characterModel, setCharacterModel] = useState<THREE.Object3D | null>(null);
-  const [animations, setAnimations] = useState<Map<string, THREE.AnimationClip>>(new Map());
-  const [onBeat, setOnBeat] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [isVictory, setIsVictory] = useState(false);
-  const [maxCombo, setMaxCombo] = useState(0);
-  const [perfectHits, setPerfectHits] = useState(0);
+  const [loadedComponents, setLoadedComponents] = useState({
+    bass: false,
+    beatVisualizer: false
+  });
+  const [showInstructions, setShowInstructions] = useState(true);
   
-  const assetLoaderRef = useRef(new AssetLoader());
-  const rhythmEngineRef = useRef(new RhythmEngine(130)); // 130 BPM for "Vi e trøndera"
-  const audioManagerRef = useRef(AudioManager.getInstance());
-  const bassRef = useRef<THREE.Object3D | null>(null);
-  const gameTimeRef = useRef(0);
-  const animationFrameRef = useRef<number | null>(null);
+  // Initialize audio when component mounts
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        const audioManager = AudioManager.getInstance();
+        
+        // Preload audio files
+        await audioManager.loadAllSounds();
+        
+        // Make AudioManager globally accessible
+        window.AudioManager = { getInstance: () => audioManager };
+        
+        console.log("Audio successfully initialized");
+      } catch (error) {
+        console.error("Error initializing audio:", error);
+      }
+    };
+    
+    // Initialize debug logs if not already done
+    if (!window._debugLogs) {
+      window._debugLogs = [];
+    }
+    
+    initAudio();
+  }, []);
   
+  // Simple start game function
   const startGame = () => {
+    console.log("Starting countdown");
+    setGameState('countdown');
+    setCountdownNumber(3);
+    
+    // Simulate countdown with setTimeout
+    setTimeout(() => {
+      setCountdownNumber(2);
+      setTimeout(() => {
+        setCountdownNumber(1);
+        setTimeout(() => {
+          console.log("Countdown finished, starting game");
+          handleCountdownComplete();
+        }, 1000);
+      }, 1000);
+    }, 1000);
+  };
+  
+  // Handle countdown completion and game start
+  const handleCountdownComplete = () => {
     try {
       console.log('Starter spillet');
       
@@ -59,139 +87,187 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
         difficulty: 'normal'
       };
       
-      const audioManager = audioManagerRef.current;
-      const audioContext = audioManager.getAudioContext();
+      // Create global animation functions array
+      window.gameAnimationFunctions = [];
       
-      if (!audioContext) {
-        toast.error("Kunne ikke starte lydkontekst. Sjekk at nettleseren din støtter Web Audio API.");
-        return;
-      }
+      // Initialize game state
+      window.gameState = {
+        score: 0,
+        combo: 0,
+        isPlaying: true
+      };
       
-      const startTime = audioManager.getCurrentTime() * 1000;
-      rhythmEngineRef.current.start(startTime);
-      gameTimeRef.current = startTime;
+      // Start the game
+      setGameState('playing');
+      setShowInstructions(true);
       
-      audioManager.playMusic('music');
-      
-      audioManager.onBeat(time => {
-        console.log(`Beat at time: ${time}`);
-      });
-      
-      setGameStarted(true);
-      requestAnimationFrame(gameLoop);
-    } catch (error) {
-      console.error('Feil ved spillstart:', error);
-      // Continue to game state even if there's an error
-      setGameStarted(true);
-    }
-  };
-  
-  const gameLoop = () => {
-    try {
-      const audioManager = audioManagerRef.current;
-      const audioContext = audioManager.getAudioContext();
-      
-      if (!audioContext) return;
-      
-      const currentTime = audioManager.getCurrentTime() * 1000;
-      
-      const visibleBeats = rhythmEngineRef.current.getVisibleBeats(currentTime);
-      setVisibleBeats(visibleBeats);
-      
-      if (missCount >= 3) {
-        handleGameOver(false);
-        return;
-      }
-      
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
-    } catch (error) {
-      console.error('Feil i gameLoop:', error);
-      // Try to continue the game loop despite errors
-      animationFrameRef.current = requestAnimationFrame(gameLoop);
-    }
-  };
-  
-  const handleGameOver = (victory: boolean) => {
-    try {
-      setGameOver(true);
-      setIsVictory(victory);
-      
-      const audioManager = audioManagerRef.current;
-      if (victory) {
-        audioManager.playSound('victory');
-      } else {
-        audioManager.playGameOverEffects();
-      }
-      
+      // Hide instructions after 8 seconds
       setTimeout(() => {
-        onGameOver(score, perfectHits, maxCombo);
-      }, 2000);
-    } catch (error) {
-      console.error('Feil i handleGameOver:', error);
-      // Ensure game over callback is still called
+        setShowInstructions(false);
+      }, 8000);
+      
+      // Load components gradually
       setTimeout(() => {
-        onGameOver(score, perfectHits, maxCombo);
-      }, 2000);
-    }
-  };
-  
-  // Initialize the game
-  useGameInitializer({
-    assetLoaderRef,
-    audioManagerRef,
-    startGame,
-    setCharacterModel,
-    setAnimations,
-    setLoading,
-    setCountdown,
-    bassRef,
-    animationFrameRef
-  });
-  
-  // Handle beat inputs
-  useGameBeatHandler({
-    gameStarted,
-    setOnBeat,
-    setCombo,
-    setScore,
-    setMissCount,
-    setMaxCombo,
-    setPerfectHits,
-    combo,
-    rhythmEngineRef,
-    audioManagerRef
-  });
-  
-  if (loading || countdown > 0) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center bg-black text-white">
-        {loading ? (
-          <p className="text-2xl">Laster spillet...</p>
-        ) : (
-          <Countdown value={countdown} />
-        )}
-      </div>
-    );
-  }
-  
-  return (
-    <div className="relative w-full h-full">
-      <GameCanvas>
-        {characterModel && (
-          <Character 
-            model={characterModel} 
-            animations={animations} 
-            onBeat={onBeat} 
-            gameOver={gameOver}
-            isVictory={isVictory}
-          />
-        )}
+        console.log("Loading Bass component");
+        setLoadedComponents(prev => ({ ...prev, bass: true }));
         
-        {gameStarted && <Bass />}
+        setTimeout(() => {
+          console.log("Loading BeatVisualizer component");
+          setLoadedComponents(prev => ({ ...prev, beatVisualizer: true }));
+          
+          // Start background music
+          try {
+            const audioManager = AudioManager.getInstance();
+            audioManager.playMusic('music', 0.7);
+          } catch (error) {
+            console.error("Failed to start music:", error);
+          }
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error starting game:", error);
+      // Continue to playing state even if there's an error
+      setGameState('playing');
+    }
+  };
+  
+  // Handle game over
+  const handleGameOver = () => {
+    setGameState('gameover');
+    
+    // Stop music if playing
+    try {
+      const audioManager = AudioManager.getInstance();
+      audioManager.stopMusic();
+    } catch (error) {
+      console.error("Error stopping music:", error);
+    }
+    
+    onGameOver(score);
+  };
+  
+  // Handle restart
+  const handleRestart = () => {
+    setGameState('start');
+    setScore(0);
+    setLoadedComponents({
+      bass: false,
+      beatVisualizer: false
+    });
+  };
+
+  // Update score from window.gameState
+  useEffect(() => {
+    if (gameState === 'playing' && window.gameState) {
+      const scoreUpdateInterval = setInterval(() => {
+        if (window.gameState) {
+          setScore(window.gameState.score);
+        }
+      }, 100);
+      
+      return () => clearInterval(scoreUpdateInterval);
+    }
+  }, [gameState]);
+
+  // Handle player input
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+    
+    // Handle space key
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.code === 'Space') {
+        event.preventDefault();
+        if (typeof window.checkHit === 'function') {
+          window.checkHit();
+        }
+      }
+    };
+    
+    // Handle click events (if not handled by BeatVisualizer)
+    const handleClick = () => {
+      if (typeof window.checkHit === 'function') {
+        window.checkHit();
+      }
+    };
+    
+    // Add event listeners
+    window.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('click', handleClick);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('click', handleClick);
+    };
+  }, [gameState]);
+
+  return (
+    <div className="game-container relative w-screen h-screen overflow-hidden">
+      {/* GameCanvas is always rendered */}
+      <GameCanvas gameState={gameState}>
+        {/* Conditionally render Bass component */}
+        {gameState === 'playing' && loadedComponents.bass && <Bass />}
+        {/* Conditionally render BeatVisualizer component */}
+        {gameState === 'playing' && loadedComponents.beatVisualizer && <BeatVisualizer />}
       </GameCanvas>
       
-      <ScoreDisplay score={score} combo={combo} missCount={missCount} />
-      <BeatVisualizer />
+      {/* UI overlays based on game state */}
+      {gameState === 'start' && (
+        <div className="ui-overlay absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/70 text-white">
+          <h1 className="text-4xl font-bold mb-8">Superponni: Kom å Spælla Basse</h1>
+          <Button 
+            onClick={startGame}
+            className="text-xl px-8 py-6 bg-green-600 hover:bg-green-700"
+          >
+            Start Spill
+          </Button>
+        </div>
+      )}
+      
+      {gameState === 'countdown' && (
+        <div className="ui-overlay absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/70">
+          <div className="text-9xl font-bold text-white">{countdownNumber}</div>
+        </div>
+      )}
+      
+      {gameState === 'playing' && (
+        <div className="ui-overlay absolute inset-0 pointer-events-none z-10">
+          <div className="score m-4 p-3 bg-black/50 text-white rounded text-xl">
+            Score: {score}
+          </div>
+          <div className="combo m-4 mt-14 p-3 bg-black/50 text-white rounded text-xl">
+            Combo: {window.gameState?.combo || 0}
+          </div>
+          {!loadedComponents.beatVisualizer && (
+            <div className="loading absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-black/50 text-white p-4 rounded text-lg">
+              Loading game components...
+            </div>
+          )}
+          {showInstructions && (
+            <div className="instructions absolute bottom-32 left-1/2 transform -translate-x-1/2 bg-black/70 text-white p-3 rounded-lg text-lg max-w-md">
+              <h3 className="font-bold text-yellow-300 mb-2">Slik spiller du:</h3>
+              <p>Trykk på <strong className="text-green-400">mellomrom</strong> når de hvite sirklene er i midten av ringen</p>
+              <p className="mt-1">Perfekt timing gir høyest poeng!</p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {gameState === 'gameover' && (
+        <div className="ui-overlay absolute inset-0 flex flex-col items-center justify-center z-10 bg-black/70 text-white">
+          <h2 className="text-3xl font-bold mb-4">Game Over</h2>
+          <p className="text-xl mb-8">Din score: {score}</p>
+          <Button 
+            onClick={handleRestart}
+            className="text-xl px-6 py-4 bg-green-600 hover:bg-green-700"
+          >
+            Spill Igjen
+          </Button>
+        </div>
+      )}
+      
+      {/* Always render DebugPanel */}
+      <DebugPanel />
     </div>
   );
 };

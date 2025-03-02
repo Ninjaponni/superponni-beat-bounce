@@ -1,154 +1,81 @@
+import { useState, useEffect, useCallback } from 'react';
 
-import { useEffect, RefObject } from 'react';
-import * as THREE from 'three';
-import AssetLoader from '@/utils/AssetLoader';
-import AudioManager from '@/utils/AudioManager';
-import { toast } from "sonner";
-
-interface UseGameInitializerProps {
-  assetLoaderRef: RefObject<AssetLoader>;
-  audioManagerRef: RefObject<AudioManager>;
-  startGame: () => void;
-  setCharacterModel: (model: THREE.Object3D) => void;
-  setAnimations: (animations: Map<string, THREE.AnimationClip>) => void;
-  setLoading: (loading: boolean) => void;
-  setCountdown: (value: React.SetStateAction<number>) => void;
-  bassRef: RefObject<THREE.Object3D | null>;
-  animationFrameRef: RefObject<number | null>;
+interface GameInitializerOptions {
+  // Define any options you want to pass to the initializer
 }
 
-export function useGameInitializer({
-  assetLoaderRef,
-  audioManagerRef,
-  startGame,
-  setCharacterModel,
-  setAnimations,
-  setLoading,
-  setCountdown,
-  bassRef,
-  animationFrameRef
-}: UseGameInitializerProps) {
-  useEffect(() => {
-    const initGame = async () => {
-      try {
-        console.log('Initialiserer spill');
-        
-        // Add safety net for physics errors with proper typing - changed 'lov' to 'bass'
-        if (typeof window.gameConfig === 'undefined') {
-          window.gameConfig = {
-            physics: {
-              bass: {
-                enabled: true,
-                maxSpeed: 5,
-                gravity: 9.8,
-                airResistance: 0.99,
-                bounceFactor: 0.8
-              }
-            },
-            difficulty: 'normal'
-          };
-        }
-        
-        const audioManager = audioManagerRef.current;
-        if (!audioManager) {
-          toast.error("Kunne ikke initialisere lydmanager");
-          setLoading(false); // Continue anyway
-          return;
-        }
-        
-        await audioManager.loadAllSounds().catch(error => {
-          console.error('Feil ved lasting av lyder:', error);
-          // Continue without sounds if needed
-        });
-        
-        const assetLoader = assetLoaderRef.current;
-        if (!assetLoader) {
-          toast.error("Kunne ikke initialisere asset loader");
-          setLoading(false); // Continue anyway
-          return;
-        }
-        
-        try {
-          const loaded = await assetLoader.loadAll();
-          
-          if (!loaded) {
-            console.error('Kunne ikke laste alle ressurser');
-            toast.error("Kunne ikke laste alle ressurser. Vennligst prøv igjen.");
-            // Continue with what we have
-          }
-        } catch (error) {
-          console.error('Feil ved lasting av assets:', error);
-          // Continue despite asset loading errors
-        }
-        
-        try {
-          const idleModel = assetLoaderRef.current.getModel('idle');
-          if (idleModel) {
-            setCharacterModel(idleModel);
-          }
-          
-          const anims = new Map<string, THREE.AnimationClip>();
-          
-          ['idle', 'kickLeft', 'kickRight', 'victory', 'defeat'].forEach(name => {
-            try {
-              const anim = assetLoaderRef.current.getAnimation(name);
-              if (anim) {
-                anims.set(name, anim);
-              }
-            } catch (e) {
-              console.warn(`Kunne ikke laste animasjon ${name}:`, e);
+type GameInitializerStatus = 'idle' | 'loading' | 'success' | 'error';
+
+export function useGameInitializer(options?: GameInitializerOptions) {
+  const [status, setStatus] = useState<GameInitializerStatus>('idle');
+  const [error, setError] = useState<Error | null>(null);
+  const [progress, setProgress] = useState<number>(0);
+
+  // Initialize the game
+  const initializeGame = useCallback(async () => {
+    setStatus('loading');
+    setProgress(0);
+
+    try {
+      // Simulate loading steps
+      await new Promise(resolve => setTimeout(resolve, 500)); // Initial delay
+
+      // Step 1: Initialize core game systems
+      console.log("Initializing core game systems...");
+      setProgress(25);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 2: Load assets
+      console.log("Loading assets...");
+      setProgress(50);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // Step 3: Configure game settings
+      console.log("Configuring game settings...");
+      setProgress(75);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Add safety net for physics errors with proper typing - changed 'lov' to 'bass'
+      if (typeof window.gameConfig === 'undefined') {
+        window.gameConfig = {
+          physics: {
+            bass: {
+              enabled: true,
+              maxSpeed: 5,
+              gravity: 9.8,
+              airResistance: 0.99,
+              bounceFactor: 0.8
             }
-          });
-          
-          setAnimations(anims);
-        } catch (error) {
-          console.error('Feil ved oppsett av karakter:', error);
-          // Continue despite character setup errors
-        }
-        
-        // Always proceed to countdown
-        setLoading(false);
-        
-        const countdownInterval = setInterval(() => {
-          setCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              
-              // Try to start the game, but continue regardless
-              try {
-                startGame();
-              } catch (error) {
-                console.error('Feil ved start av spill:', error);
-                // Force game to start despite errors
-                setLoading(false);
-              }
-              
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-        
-        return () => {
-          clearInterval(countdownInterval);
-          if (animationFrameRef.current) {
-            cancelAnimationFrame(animationFrameRef.current);
-          }
-          try {
-            audioManagerRef.current?.stopMusic();
-          } catch (e) {
-            console.error('Feil ved stopp av musikk:', e);
-          }
+          },
+          difficulty: 'normal'
         };
-      } catch (error) {
-        console.error('Fatal feil under initialisering av spillet:', error);
-        toast.error("Feil under initialisering av spillet. Vennligst prøv igjen.");
-        setLoading(false); // Try to continue despite errors
       }
-    };
-    
-    initGame();
-  }, []);
+
+      // Step 4: Finalize initialization
+      console.log("Finalizing initialization...");
+      setProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setStatus('success');
+      console.log("Game initialized successfully!");
+
+    } catch (error: any) {
+      console.error("Error initializing game:", error);
+      setError(error);
+      setStatus('error');
+    }
+  }, [options]);
+
+  useEffect(() => {
+    initializeGame();
+  }, [initializeGame]);
+
+  return {
+    status,
+    error,
+    progress,
+    initializeGame
+  };
 }
 
 export default useGameInitializer;
