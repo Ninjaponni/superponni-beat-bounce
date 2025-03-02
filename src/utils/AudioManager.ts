@@ -159,12 +159,12 @@ export class AudioManager {
     }
   }
   
-  public playMusic(name: string, bpm: number = 130, volume: number = 0.7): void {
+  public playMusic(name: string, volume: number = 0.7): void {
     try {
       this.stopMusic();
       
-      this.bpm = bpm;
-      this.beatInterval = 60000 / bpm;
+      this.bpm = 130; // Default BPM for "Vi e trøndera"
+      this.beatInterval = 60000 / this.bpm;
       
       const audio = new Audio();
       
@@ -174,7 +174,7 @@ export class AudioManager {
       
       const startMusic = async () => {
         const startTime = performance.now();
-        console.log(`Music '${name}' started at ${startTime}ms with BPM ${bpm}`);
+        console.log(`Music '${name}' started at ${startTime}ms with BPM ${this.bpm}`);
         
         this.setupBeatCallbacks(startTime);
         

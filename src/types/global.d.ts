@@ -36,7 +36,7 @@ interface Window {
     handleHit(quality: string): void;
   };
   checkHit?: () => { hit: boolean; quality: string; timing?: 'early' | 'perfect' | 'late' };
-  rhythmEngine?: RhythmEngine;
+  rhythmEngine?: any;
   
   // Audio management
   AudioManager?: {

@@ -1,3 +1,4 @@
+
 export type BeatScore = 'perfect' | 'good' | 'ok' | 'miss';
 
 export interface Beat {

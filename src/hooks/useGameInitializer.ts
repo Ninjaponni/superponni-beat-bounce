@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from 'react';
 
 interface GameInitializerOptions {
@@ -47,7 +48,11 @@ export function useGameInitializer(options?: GameInitializerOptions) {
               bounceFactor: 0.8
             }
           },
-          difficulty: 'normal'
+          difficulty: 'normal',
+          audio: {
+            enabled: true,
+            volume: 0.7
+          }
         };
       }
 

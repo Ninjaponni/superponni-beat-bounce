@@ -20,7 +20,11 @@ window.onerror = function(message, source, lineno, colno, error) {
           maxSpeed: 5
         }
       },
-      difficulty: 'normal'
+      difficulty: 'normal',
+      audio: {
+        enabled: true,
+        volume: 0.7
+      }
     };
   }
   
