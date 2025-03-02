@@ -11,10 +11,12 @@ window.onerror = function(message, source, lineno, colno, error) {
   if (!window.hasOwnProperty('gameConfig')) {
     window.gameConfig = {
       physics: {
-        gravity: 9.8,
-        airResistance: 0.99,
-        bounceFactor: 0.8,
-        maxSpeed: 5
+        bass: {
+          gravity: 9.8,
+          airResistance: 0.99,
+          bounceFactor: 0.8,
+          maxSpeed: 5
+        }
       },
       difficulty: 'normal'
     };

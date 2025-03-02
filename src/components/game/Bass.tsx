@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import * as THREE from 'three';
 import BassController from '@/lib/BassController';
 
@@ -35,13 +35,15 @@ export const Bass: React.FC = () => {
       try {
         console.log("Attempting to initialize BassController");
         
-        // Create config with physics properties
+        // Create config with physics.bass properties
         const safeConfig = {
           physics: {
-            gravity: 9.8,
-            airResistance: 0.99,
-            bounceFactor: 0.8,
-            maxSpeed: 5
+            bass: {
+              gravity: 9.8,
+              airResistance: 0.99,
+              bounceFactor: 0.8,
+              maxSpeed: 5
+            }
           }
         };
         

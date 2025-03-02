@@ -22,10 +22,9 @@ export class BassController {
       this.config.physics = {};
     }
     
-    // Ensure physics settings exist with defaults
-    if (!this.config.physics.gravity) {
-      this.config.physics = {
-        ...this.config.physics,
+    // Ensure physics.bass settings exist with defaults
+    if (!this.config.physics.bass) {
+      this.config.physics.bass = {
         gravity: 9.8,
         airResistance: 0.99,
         bounceFactor: 0.8,
@@ -63,9 +62,9 @@ export class BassController {
     
     try {
       // Get settings safely
-      const gravity = this.getSetting('physics.gravity', 9.8);
-      const airResistance = this.getSetting('physics.airResistance', 0.99);
-      const bounceFactor = this.getSetting('physics.bounceFactor', 0.8);
+      const gravity = this.getSetting('physics.bass.gravity', 9.8);
+      const airResistance = this.getSetting('physics.bass.airResistance', 0.99);
+      const bounceFactor = this.getSetting('physics.bass.bounceFactor', 0.8);
       
       // Convert to seconds if deltaTime is in ms
       const dt = deltaTime > 0.1 ? deltaTime / 1000 : deltaTime;
