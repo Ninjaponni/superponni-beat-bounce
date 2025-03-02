@@ -82,10 +82,10 @@ const Game = ({ onGameOver }: GameProps) => {
         isPlaying: true
       };
       
-      // Create global config with 'lov' property
+      // Create global config with 'bass' property instead of 'lov'
       window.gameConfig = {
         physics: {
-          lov: {
+          bass: {
             enabled: true,
             gravity: 9.8,
             airResistance: 0.99,

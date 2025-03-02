@@ -33,11 +33,11 @@ export function useGameInitializer({
       try {
         console.log('Initialiserer spill');
         
-        // Add safety net for 'lov' errors with proper typing
+        // Add safety net for physics errors with proper typing - changed 'lov' to 'bass'
         if (typeof window.gameConfig === 'undefined') {
           window.gameConfig = {
             physics: {
-              lov: {
+              bass: {
                 enabled: true,
                 maxSpeed: 5,
                 gravity: 9.8,

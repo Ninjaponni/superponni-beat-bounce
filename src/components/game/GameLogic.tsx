@@ -45,10 +45,10 @@ const GameLogic = ({ onGameOver }: GameLogicProps) => {
     try {
       console.log('Starter spillet');
       
-      // Initialize gameConfig with the proper structure
+      // Initialize gameConfig with the proper structure using 'bass' instead of 'lov'
       window.gameConfig = {
         physics: {
-          lov: {
+          bass: {
             enabled: true,
             maxSpeed: 5,
             gravity: 9.8,
