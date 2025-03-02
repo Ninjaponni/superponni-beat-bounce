@@ -22,11 +22,10 @@ export class BassController {
       this.config.physics = {};
     }
     
-    // CRITICAL: Ensure 'lov' property exists with defaults
-    if (!this.config.physics.lov) {
-      console.log("Creating default 'lov' property in BassController");
-      this.config.physics.lov = {
-        enabled: true,
+    // Ensure physics settings exist with defaults
+    if (!this.config.physics.gravity) {
+      this.config.physics = {
+        ...this.config.physics,
         gravity: 9.8,
         airResistance: 0.99,
         bounceFactor: 0.8,
@@ -64,9 +63,9 @@ export class BassController {
     
     try {
       // Get settings safely
-      const gravity = this.getSetting('physics.lov.gravity', 9.8);
-      const airResistance = this.getSetting('physics.lov.airResistance', 0.99);
-      const bounceFactor = this.getSetting('physics.lov.bounceFactor', 0.8);
+      const gravity = this.getSetting('physics.gravity', 9.8);
+      const airResistance = this.getSetting('physics.airResistance', 0.99);
+      const bounceFactor = this.getSetting('physics.bounceFactor', 0.8);
       
       // Convert to seconds if deltaTime is in ms
       const dt = deltaTime > 0.1 ? deltaTime / 1000 : deltaTime;

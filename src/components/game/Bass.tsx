@@ -35,15 +35,13 @@ export const Bass: React.FC = () => {
       try {
         console.log("Attempting to initialize BassController");
         
-        // Create a safe config with the 'lov' property
+        // Create config with physics properties
         const safeConfig = {
           physics: {
-            lov: {
-              enabled: true,
-              gravity: 9.8,
-              airResistance: 0.99,
-              bounceFactor: 0.8
-            }
+            gravity: 9.8,
+            airResistance: 0.99,
+            bounceFactor: 0.8,
+            maxSpeed: 5
           }
         };
         
