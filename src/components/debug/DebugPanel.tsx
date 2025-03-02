@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import './DebugPanel.css';
 
@@ -8,9 +9,15 @@ interface DebugPanelProps {
 // Define the log level type to match the expected values
 type LogLevel = "info" | "warn" | "error";
 
+interface LogEntry {
+  level: LogLevel;
+  message: string;
+  timestamp: Date;
+}
+
 const DebugPanel: React.FC<DebugPanelProps> = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [logs, setLogs] = useState<Array<{ level: LogLevel; message: string; timestamp: Date }>>([]);
+  const [logs, setLogs] = useState<Array<LogEntry>>([]);
   
   useEffect(() => {
     // Initialize debug logs array if it doesn't exist
@@ -76,7 +83,7 @@ const DebugPanel: React.FC<DebugPanelProps> = () => {
       window._debugLogs = [];
     }
     
-    const logEntry = {
+    const logEntry: LogEntry = {
       level,
       message,
       timestamp: new Date()

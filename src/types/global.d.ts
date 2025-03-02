@@ -1,31 +1,38 @@
 
-// Extend Window interface with our global objects
-interface Window {
-  gameScene?: THREE.Scene;
-  checkHit?: () => { hit: boolean, quality: string };
-  bassController?: import('../lib/BassController').BassController;
-  gameBass?: THREE.Object3D;
-  gameState?: {
-    score: number;
-    combo: number;
-    isPlaying: boolean;
+import { RhythmEngine } from '../utils/RhythmEngine';
+
+interface GameConfig {
+  physics: {
+    bass: {
+      enabled: boolean;
+      gravity: number;
+      airResistance: number;
+      bounceFactor: number;
+      maxSpeed: number;
+    }
   };
-  gameConfig?: {
-    physics: {
-      bass: {
-        enabled: boolean;
-        gravity: number;
-        airResistance: number;
-        bounceFactor: number;
-        maxSpeed: number;
-      };
-    };
-    difficulty: string;
-  };
-  gameAnimationFunctions?: Array<() => void>;
-  AudioManager?: {
-    getInstance: () => import('../utils/AudioManager').default;
-  };
-  rhythmEngine?: import('../utils/RhythmEngine').default;
-  _debugLogs?: string[];
+  difficulty: 'easy' | 'normal' | 'hard';
+}
+
+interface BassController {
+  update: (deltaTime: number) => void;
+  handleHit: (hitQuality?: string) => void;
+}
+
+interface LogEntry {
+  level: "info" | "warn" | "error";
+  message: string;
+  timestamp: Date;
+}
+
+declare global {
+  interface Window {
+    gameConfig?: GameConfig;
+    gameScene?: THREE.Scene;
+    gameBass?: THREE.Object3D;
+    gameAnimationFunctions?: Array<(deltaTime: number) => void>;
+    bassController?: BassController;
+    rhythmEngine?: RhythmEngine;
+    _debugLogs?: Array<LogEntry>;
+  }
 }

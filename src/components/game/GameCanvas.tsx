@@ -130,7 +130,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
         if (event.code === 'Space' && gameState === 'playing' && window.bassController) {
           try {
             // Handle the hit in the bass controller
-            window.bassController.handleHit('perfect');
+            window.bassController.handleHit();
           } catch (error) {
             console.error("Error handling key press:", error);
           }

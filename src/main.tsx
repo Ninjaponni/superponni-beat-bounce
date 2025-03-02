@@ -2,6 +2,7 @@
 import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
+import { RhythmEngine } from './utils/RhythmEngine.ts'
 
 // Global error handling
 window.onerror = function(message, source, lineno, colno, error) {
@@ -12,6 +13,7 @@ window.onerror = function(message, source, lineno, colno, error) {
     window.gameConfig = {
       physics: {
         bass: {
+          enabled: true,
           gravity: 9.8,
           airResistance: 0.99,
           bounceFactor: 0.8,
@@ -24,11 +26,11 @@ window.onerror = function(message, source, lineno, colno, error) {
   
   // Add safety net for rhythmEngine
   if (!window.hasOwnProperty('rhythmEngine')) {
-    window.rhythmEngine = {
-      synchronize: (startTime: number, beatInterval: number) => {
-        console.log(`Fallback rhythm engine synchronized with startTime: ${startTime}, beatInterval: ${beatInterval}`);
-      }
-    };
+    // Create a proper fallback RhythmEngine instance
+    window.rhythmEngine = new RhythmEngine(130);
+    
+    // Make sure all required methods are available
+    console.log("Created fallback RhythmEngine");
   }
   
   return false;
