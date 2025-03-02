@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App.tsx'
 import './index.css'
 import { RhythmEngine } from './utils/RhythmEngine.ts'
+import DebugPanel from './components/debug/DebugPanel.tsx'
 
 // Global error handling
 window.onerror = function(message, source, lineno, colno, error) {
@@ -40,4 +41,21 @@ window.onerror = function(message, source, lineno, colno, error) {
   return false;
 };
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Initialize debug logs array if it doesn't exist
+if (!window._debugLogs) {
+  window._debugLogs = [];
+  console.log("Debug logs initialized");
+}
+
+const rootElement = document.getElementById("root");
+
+if (rootElement) {
+  createRoot(rootElement).render(
+    <>
+      <App />
+      <DebugPanel />
+    </>
+  );
+} else {
+  console.error("Root element not found");
+}

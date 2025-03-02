@@ -10,15 +10,39 @@ const BeatVisualizer: React.FC = () => {
   const [showInstructions, setShowInstructions] = useState(true);
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(1);
+  const [initialized, setInitialized] = useState(false);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
+    
+    if (initialized) {
+      console.log("BeatVisualizer already initialized, skipping duplicate setup");
+      return;
+    }
     
     try {
       // Create container for beat circles if it doesn't exist
       if (!containerRef.current) {
         console.warn("BeatVisualizer container not available");
         return;
+      }
+      
+      // Clean up any previous elements before re-initializing
+      const existingTrack = containerRef.current.querySelector('.beat-track');
+      const existingTargetZone = containerRef.current.querySelector('.target-zone');
+      
+      if (existingTrack || existingTargetZone) {
+        console.warn("Found existing beat visualizer elements, cleaning up first");
+        Array.from(containerRef.current.children).forEach((child) => {
+          if (child.classList && 
+              (child.classList.contains('beat-track') || 
+               child.classList.contains('target-zone') || 
+               child.classList.contains('timing-feedback') || 
+               child.classList.contains('combo-counter') ||
+               child.classList.contains('beat-circle'))) {
+            containerRef.current?.removeChild(child);
+          }
+        });
       }
       
       // Create beat track (the line)
@@ -68,7 +92,11 @@ const BeatVisualizer: React.FC = () => {
       
       // Generate beat circles function
       const createBeatCircle = () => {
-        if (!isActive || !containerRef.current) return;
+        console.log("Creating beat circle");
+        if (!isActive || !containerRef.current) {
+          console.log("Skipping beat creation - not active or container missing");
+          return;
+        }
         
         // Create a beat circle
         const beatCircle = document.createElement('div');
@@ -77,6 +105,7 @@ const BeatVisualizer: React.FC = () => {
         
         // Add to active beats
         activeBeats.push(beatCircle);
+        console.log(`Active beats: ${activeBeats.length}`);
         
         // Remove beat circle after animation completes
         setTimeout(() => {
@@ -92,6 +121,7 @@ const BeatVisualizer: React.FC = () => {
       
       // Register with AudioManager to create beat circles in sync with music
       const beatCallback = () => {
+        console.log("Beat callback triggered");
         createBeatCircle();
       };
       
@@ -108,6 +138,7 @@ const BeatVisualizer: React.FC = () => {
       
       // Event listener for hit visual feedback
       const handleHitEvent = (event: CustomEvent) => {
+        console.log("Hit event received:", event.detail);
         const { quality, targetElement, timing } = event.detail;
         
         if (!quality || !targetElement) return;
@@ -244,8 +275,11 @@ const BeatVisualizer: React.FC = () => {
       window.addEventListener('game:hit', handleHitEvent as EventListener);
       window.addEventListener('game:perfectMilestone', handlePerfectMilestone as EventListener);
       
+      setInitialized(true);
+      
       // Clean up
       return () => {
+        console.log("BeatVisualizer cleaning up");
         // Remove event listeners
         window.removeEventListener('game:hit', handleHitEvent as EventListener);
         window.removeEventListener('game:perfectMilestone', handlePerfectMilestone as EventListener);
@@ -262,17 +296,13 @@ const BeatVisualizer: React.FC = () => {
           }
         });
         
-        // Remove track and target zone
-        if (track.parentNode) track.parentNode.removeChild(track);
-        if (targetZone.parentNode) targetZone.parentNode.removeChild(targetZone);
-        if (timingFeedback.parentNode) timingFeedback.parentNode.removeChild(timingFeedback);
-        if (comboCounter.parentNode) comboCounter.parentNode.removeChild(comboCounter);
+        setInitialized(false);
       };
     } catch (error) {
       console.error("Error in BeatVisualizer:", error);
       toast.error("Problem med visualisering av bass-rytme");
     }
-  }, [containerRef, isActive, audioManager]);
+  }, [containerRef, isActive, audioManager, initialized]);
   
   // Handle tutorial steps
   const handleShowTutorial = () => {
@@ -327,11 +357,13 @@ const BeatVisualizer: React.FC = () => {
   
   // Handle player input
   const checkHit = () => {
+    console.log("checkHit called from BeatVisualizer click");
     if (typeof window.checkHit === 'function') {
       const result = window.checkHit();
+      console.log("checkHit result:", result);
       
       // Dispatch event for visual feedback
-      if (result.hit) {
+      if (result && result.hit) {
         const event = new CustomEvent('game:hit', { 
           detail: { 
             quality: result.quality,
@@ -341,6 +373,8 @@ const BeatVisualizer: React.FC = () => {
         });
         window.dispatchEvent(event);
       }
+    } else {
+      console.warn("window.checkHit is not a function");
     }
   };
   

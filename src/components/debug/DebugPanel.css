@@ -1,6 +1,6 @@
 
 /* Basic styles for the debug panel */
-.debug-toggle {
+.debug-panel-toggle {
   position: fixed;
   bottom: 10px;
   right: 10px;
@@ -29,17 +29,24 @@
   box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
 
-.debug-header {
+.debug-panel-header {
   display: flex;
   justify-content: space-between;
   padding: 5px;
   border-bottom: 1px solid #333;
 }
 
-.debug-content {
+.debug-panel-content {
   overflow-y: auto;
   flex: 1;
   padding: 5px;
+}
+
+.debug-panel-footer {
+  padding: 5px;
+  border-top: 1px solid #333;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .log-entry {
@@ -61,9 +68,16 @@
   color: #ff5555;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  color: white;
-  cursor: pointer;
+.log-time {
+  color: #888888;
+  margin-right: 5px;
+}
+
+.log-level {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.log-message {
+  flex: 1;
 }

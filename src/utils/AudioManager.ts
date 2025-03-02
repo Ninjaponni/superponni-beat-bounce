@@ -161,6 +161,7 @@ export class AudioManager {
   
   public playMusic(name: string, volume: number = 0.7): void {
     try {
+      console.log(`Starting music: ${name} with volume ${volume}`);
       this.stopMusic();
       
       this.bpm = 130; // Default BPM for "Vi e trøndera"
@@ -249,6 +250,7 @@ export class AudioManager {
   }
   
   private setupBeatCallbacks(startTime: number): void {
+    console.log(`Setting up beat callbacks from startTime: ${startTime}ms`);
     if (this.beatIntervalId !== null) {
       window.clearInterval(this.beatIntervalId);
       this.beatIntervalId = null;
@@ -259,12 +261,19 @@ export class AudioManager {
     const beatPhase = timeSinceStart % this.beatInterval;
     const timeToFirstBeat = this.beatInterval - beatPhase;
     
+    console.log(`Current time: ${currentTime}ms, time since start: ${timeSinceStart}ms`);
+    console.log(`Beat phase: ${beatPhase}ms, time to first beat: ${timeToFirstBeat}ms`);
+    
     setTimeout(() => {
+      console.log(`First beat triggered at ${performance.now()}ms`);
       this.triggerBeatCallbacks(performance.now());
       
       this.beatIntervalId = window.setInterval(() => {
+        console.log(`Regular beat triggered at ${performance.now()}ms`);
         this.triggerBeatCallbacks(performance.now());
       }, this.beatInterval);
+      
+      console.log(`Beat interval ID: ${this.beatIntervalId}`);
     }, timeToFirstBeat);
     
     console.log(`Beat callbacks scheduled with interval ${this.beatInterval.toFixed(2)}ms (${this.bpm} BPM)`);
@@ -282,6 +291,7 @@ export class AudioManager {
   }
   
   private triggerBeatCallbacks(time: number): void {
+    console.log(`Triggering ${this.beatCallbacks.length} beat callbacks at ${time}ms`);
     this.beatCallbacks.forEach(callback => callback(time));
   }
   
@@ -338,14 +348,14 @@ export class AudioManager {
   
   public onBeat(callback: (time: number) => void): void {
     this.beatCallbacks.push(callback);
-    console.log("Beat callback registered");
+    console.log(`Beat callback registered. Total callbacks: ${this.beatCallbacks.length}`);
   }
   
   public offBeat(callback: (time: number) => void): void {
     const index = this.beatCallbacks.indexOf(callback);
     if (index !== -1) {
       this.beatCallbacks.splice(index, 1);
-      console.log("Beat callback removed");
+      console.log(`Beat callback removed. Remaining callbacks: ${this.beatCallbacks.length}`);
     }
   }
   

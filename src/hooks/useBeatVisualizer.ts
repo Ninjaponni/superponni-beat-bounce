@@ -48,6 +48,7 @@ export function useBeatVisualizer() {
       
       // Register with AudioManager to create beat circles in sync with music
       const beatCallback = (time: number) => {
+        console.log(`Beat callback from useBeatVisualizer at ${time}ms`);
         // This will be handled in the component
       };
       
@@ -56,13 +57,18 @@ export function useBeatVisualizer() {
       
       // Improved hit detection using RhythmEngine with combo system
       const checkHit = (): HitResult => {
+        console.log("checkHit function called from global access");
         try {
-          if (!containerRef.current) return { hit: false, quality: 'miss' };
+          if (!containerRef.current) {
+            console.warn("No container ref in checkHit");
+            return { hit: false, quality: 'miss' };
+          }
           
           // Get current time from AudioManager
           const currentTime = audio.getCurrentTime() * 1000;
           
           // Use RhythmEngine for precise hit detection
+          console.log(`Checking hit at ${currentTime}ms`);
           const result = engine.checkPlayerInput(currentTime);
           
           // Process hit result
@@ -132,6 +138,7 @@ export function useBeatVisualizer() {
               audio.playSound('miss', 0.6);
             }
             
+            console.log("Miss: No beat found within the timing window");
             return { hit: false, quality: 'miss' };
           }
         } catch (error) {
@@ -142,6 +149,7 @@ export function useBeatVisualizer() {
       
       // Add global access to checkHit
       window.checkHit = checkHit;
+      console.log("Registered window.checkHit function");
       
       // Clean up
       return () => {

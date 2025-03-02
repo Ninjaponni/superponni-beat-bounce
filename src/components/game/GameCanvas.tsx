@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
@@ -109,6 +110,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.code === 'Space' && gameState === 'playing' && window.bassController) {
+          console.log("Space key pressed - GameCanvas event handler");
           try {
             window.bassController.handleHit('good');
           } catch (error) {
