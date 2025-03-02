@@ -163,6 +163,28 @@
   }
 }
 
+/* New CSS animation with variable timing */
+@keyframes moveBeatDynamic {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.beat-circle-dynamic {
+  animation: moveBeatDynamic var(--beat-duration, 2000ms) linear forwards;
+}
+
 .instruction-text {
   position: absolute;
   bottom: -40px;

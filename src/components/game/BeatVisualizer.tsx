@@ -1,6 +1,8 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import './BeatVisualizer.css';
+import AudioManager from '@/utils/AudioManager';
+import { toast } from 'sonner';
 
 interface BeatVisualizerProps {
   beats?: any[];
@@ -11,9 +13,11 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isActive, setIsActive] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
+  const [audioManager, setAudioManager] = useState<AudioManager | null>(null);
   
   useEffect(() => {
     console.log("BeatVisualizer mounting");
+    setAudioManager(AudioManager.getInstance());
     
     try {
       // Create container for beat circles if it doesn't exist
@@ -21,6 +25,13 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
         console.warn("BeatVisualizer container not available");
         return;
       }
+      
+      // Get AudioManager instance
+      const audio = AudioManager.getInstance();
+      
+      // Get BPM info
+      const { bpm, interval: beatInterval } = audio.getBeatInfo();
+      console.log(`Using BPM: ${bpm}, interval: ${beatInterval}ms`);
       
       // Create beat track (the line)
       const track = document.createElement('div');
@@ -32,46 +43,39 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       targetZone.className = 'target-zone';
       containerRef.current.appendChild(targetZone);
       
-      // Setup beat generation based on BPM
-      const bpm = 130; // Default BPM
-      const beatInterval = 60000 / bpm; // ms between beats
-      
       // Sørg for at container har riktige dimensjoner
       const containerWidth = window.innerWidth;
       
-      // Start generating beats
-      setIsActive(true);
-      
-      // Calculate time to target in ms
-      const speed = 250; // pixels per second
+      // Calculate speed and timing based on BPM
+      const speed = 250; // pixels per second - this should be calculated based on screen size
       const timeToTargetMs = (containerWidth / 2) / speed * 1000;
+      
+      // Set CSS variables for animation duration
+      document.documentElement.style.setProperty('--beat-duration', `${timeToTargetMs}ms`);
       
       console.log(`Beat generation started with interval ${beatInterval.toFixed(0)}ms (${bpm} BPM)`);
       console.log(`Time to target: ${timeToTargetMs.toFixed(0)}ms`);
       
+      // Start generating beats
+      setIsActive(true);
+      
       // Holder styr på aktive beatCircles
       const activeBeats: HTMLElement[] = [];
       
-      // Generate beat circles at regular intervals
+      // Generate beat circles function
       const createBeatCircle = () => {
         if (!isActive || !containerRef.current) return;
         
         // Create a beat circle
         const beatCircle = document.createElement('div');
-        beatCircle.className = 'beat-circle';
+        beatCircle.className = 'beat-circle beat-circle-dynamic'; // Add dynamic class
         containerRef.current.appendChild(beatCircle);
-        
-        // Start position at left
-        beatCircle.style.left = '0px';
         
         // Add to active beats
         activeBeats.push(beatCircle);
         
         // Log for debugging
         console.log(`Beat circle created, will reach target in ${timeToTargetMs.toFixed(0)}ms`);
-        
-        // Animate the beat circle from left to right
-        beatCircle.style.animation = 'moveBeat 2s linear forwards';
         
         // Remove beat circle after animation completes
         setTimeout(() => {
@@ -82,16 +86,19 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
               activeBeats.splice(index, 1);
             }
           }
-        }, 2000);
+        }, timeToTargetMs);
       };
       
-      const beatGenerator: NodeJS.Timeout = setInterval(createBeatCircle, beatInterval);
+      // Register with AudioManager to create beat circles in sync with music
+      const beatCallback = (time: number) => {
+        createBeatCircle();
+      };
       
-      // Create first beat immediately
+      // Register beat callback with AudioManager
+      audio.onBeat(beatCallback);
+      
+      // Create first beat immediately for visual reference
       createBeatCircle();
-      
-      // Store reference to beatGenerator in window for debug
-      window.beatGenerator = beatGenerator;
       
       // After 8 seconds, hide the instructions
       setTimeout(() => {
@@ -139,6 +146,9 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
               // Visual feedback on target zone
               targetZone.classList.add('target-hit-perfect');
               setTimeout(() => targetZone.classList.remove('target-hit-perfect'), 200);
+              
+              // Play sound for perfect hit
+              audio.playHitSound('perfect');
             } else if (closestDistance < 50) {
               quality = 'good';
               hitText = 'GOOD!';
@@ -146,6 +156,9 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
               
               targetZone.classList.add('target-hit-good');
               setTimeout(() => targetZone.classList.remove('target-hit-good'), 200);
+              
+              // Play sound for good hit
+              audio.playHitSound('good');
             } else {
               quality = 'ok';
               hitText = 'OK';
@@ -153,6 +166,9 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
               
               targetZone.classList.add('target-hit-ok');
               setTimeout(() => targetZone.classList.remove('target-hit-ok'), 200);
+              
+              // Play sound for ok hit
+              audio.playHitSound('ok');
             }
             
             // Display hit text
@@ -219,6 +235,7 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
           // Miss
           if (window.gameState) {
             window.gameState.combo = 0;
+            audio.playSound('miss', 0.6);
             
             // Update UI
             const comboElement = document.querySelector('.combo');
@@ -240,8 +257,12 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       // Clean up
       return () => {
         setIsActive(false);
-        clearInterval(beatGenerator);
-        delete window.beatGenerator;
+        
+        // Remove beat callback from AudioManager
+        if (audio) {
+          audio.offBeat(beatCallback);
+        }
+        
         delete window.checkHit;
         
         // Remove all active beats
@@ -257,6 +278,7 @@ const BeatVisualizer: React.FC<BeatVisualizerProps> = (props) => {
       };
     } catch (error) {
       console.error("Error in BeatVisualizer:", error);
+      toast.error("Problem med visualisering av bass-rytme");
     }
   }, []);
   
