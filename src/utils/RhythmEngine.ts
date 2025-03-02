@@ -1,10 +1,10 @@
-
 export type BeatScore = 'perfect' | 'good' | 'ok' | 'miss';
 
 export interface Beat {
   time: number;
   hit: boolean;
   score: BeatScore | '';
+  timing?: 'early' | 'perfect' | 'late';
 }
 
 export class RhythmEngine {
@@ -70,8 +70,8 @@ export class RhythmEngine {
     console.log(`RhythmEngine synchronized to audio at ${audioStartTime}ms with interval ${beatIntervalMs.toFixed(2)}ms (${this.bpm.toFixed(1)} BPM)`);
   }
   
-  // Check player input
-  checkPlayerInput(currentTime: number): { hit: boolean, score: BeatScore, beatIndex: number } {
+  // Check player input with enhanced timing feedback
+  checkPlayerInput(currentTime: number): { hit: boolean, score: BeatScore, beatIndex: number, timing?: 'early' | 'perfect' | 'late' } {
     // Find closest beat
     let closestBeatIndex = -1;
     let closestBeatDiff = Number.MAX_VALUE;
@@ -84,9 +84,10 @@ export class RhythmEngine {
       
       // Only check beats within a reasonable time window
       // (e.g., 500ms before and after)
-      const timeDiff = Math.abs(currentTime - beat.time);
-      if (timeDiff < 500 && timeDiff < closestBeatDiff) {
-        closestBeatDiff = timeDiff;
+      const timeDiff = currentTime - beat.time;
+      const absDiff = Math.abs(timeDiff);
+      if (absDiff < 500 && absDiff < closestBeatDiff) {
+        closestBeatDiff = absDiff;
         closestBeatIndex = i;
       }
     }
@@ -98,12 +99,19 @@ export class RhythmEngine {
     
     // Calculate score based on timing
     let score: BeatScore = 'miss';
-    if (closestBeatDiff < 50) {
+    let timing: 'early' | 'perfect' | 'late' | undefined;
+    
+    const timeDiff = currentTime - this.beats[closestBeatIndex].time;
+    
+    if (Math.abs(timeDiff) < 50) {
       score = 'perfect';
-    } else if (closestBeatDiff < 150) {
+      timing = 'perfect';
+    } else if (Math.abs(timeDiff) < 150) {
       score = 'good';
-    } else if (closestBeatDiff < 300) {
+      timing = timeDiff < 0 ? 'early' : 'late';
+    } else if (Math.abs(timeDiff) < 300) {
       score = 'ok';
+      timing = timeDiff < 0 ? 'early' : 'late';
     } else {
       score = 'miss';
     }
@@ -112,10 +120,11 @@ export class RhythmEngine {
     if (score !== 'miss') {
       this.beats[closestBeatIndex].hit = true;
       this.beats[closestBeatIndex].score = score;
+      this.beats[closestBeatIndex].timing = timing;
     }
     
-    console.log(`Beat check: diff=${closestBeatDiff.toFixed(2)}ms, score=${score}, index=${closestBeatIndex}`);
-    return { hit: score !== 'miss', score, beatIndex: closestBeatIndex };
+    console.log(`Beat check: diff=${Math.abs(timeDiff).toFixed(2)}ms, score=${score}, timing=${timing}, index=${closestBeatIndex}`);
+    return { hit: score !== 'miss', score, beatIndex: closestBeatIndex, timing };
   }
   
   // Get beats for rendering

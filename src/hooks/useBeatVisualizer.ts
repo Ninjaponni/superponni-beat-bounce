@@ -8,6 +8,7 @@ type HitQuality = 'perfect' | 'good' | 'ok' | 'miss';
 interface HitResult {
   hit: boolean;
   quality: HitQuality;
+  timing?: 'early' | 'perfect' | 'late';
 }
 
 export function useBeatVisualizer() {
@@ -53,7 +54,7 @@ export function useBeatVisualizer() {
       // Register beat callback with AudioManager
       audio.onBeat(beatCallback);
       
-      // Improved hit detection using RhythmEngine
+      // Improved hit detection using RhythmEngine with combo system
       const checkHit = (): HitResult => {
         try {
           if (!containerRef.current) return { hit: false, quality: 'miss' };
@@ -69,24 +70,65 @@ export function useBeatVisualizer() {
             // Quality mapping
             const quality = result.score as HitQuality;
             
-            // Update score
+            // Update score and combo with enhanced system
             if (window.gameState) {
-              const points = quality === 'perfect' ? 100 : 
-                            quality === 'good' ? 50 : 10;
+              // Base points based on quality
+              let basePoints = quality === 'perfect' ? 100 : 
+                              quality === 'good' ? 50 : 10;
               
+              // Apply combo multiplier (combo starts at 0, so add 1 for calculation)
+              const comboMultiplier = 1 + Math.min(window.gameState.combo * 0.1, 3); // Cap at 4x
+              
+              // Calculate final points
+              const points = Math.floor(basePoints * comboMultiplier);
+              
+              // Track perfect hits for bonus milestones
+              if (quality === 'perfect') {
+                window.gameState.perfectCount = (window.gameState.perfectCount || 0) + 1;
+                
+                // Every 10 perfect hits gives bonus points
+                if (window.gameState.perfectCount % 10 === 0) {
+                  window.gameState.score += 500; // Bonus for consistency!
+                  
+                  // Show a special effect for perfect hit milestone
+                  const event = new CustomEvent('game:perfectMilestone', { 
+                    detail: { 
+                      count: window.gameState.perfectCount 
+                    } 
+                  });
+                  window.dispatchEvent(event);
+                }
+              }
+              
+              // Update score and combo
               window.gameState.score = (window.gameState.score || 0) + points;
               window.gameState.combo = (window.gameState.combo || 0) + 1;
+              
+              // Track max combo
+              if (!window.gameState.maxCombo || window.gameState.combo > window.gameState.maxCombo) {
+                window.gameState.maxCombo = window.gameState.combo;
+              }
+              
+              // Set timing feedback
+              window.gameState.timingFeedback = result.timing === 'early' ? 'EARLY' : 
+                                                result.timing === 'late' ? 'LATE' : 'PERFECT';
             }
             
             // Play hit sound
             audio.playHitSound(quality);
             
-            console.log(`Hit: ${quality}, beat index: ${result.beatIndex}`);
-            return { hit: true, quality };
+            // Trigger bass animation via bassController
+            if (window.bassController) {
+              window.bassController.handleHit(quality);
+            }
+            
+            console.log(`Hit: ${quality}, beat index: ${result.beatIndex}, timing: ${result.timing}`);
+            return { hit: true, quality, timing: result.timing };
           } else {
             // Miss
             if (window.gameState) {
               window.gameState.combo = 0;
+              window.gameState.timingFeedback = null;
               audio.playSound('miss', 0.6);
             }
             

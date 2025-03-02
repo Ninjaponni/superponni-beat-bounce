@@ -13,6 +13,9 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
   const [gameState, setGameState] = useState<GameStateType>('start');
   const [countdownNumber, setCountdownNumber] = useState(3);
   const [score, setScore] = useState(0);
+  const [combo, setCombo] = useState(0);
+  const [perfectHits, setPerfectHits] = useState(0);
+  const [maxCombo, setMaxCombo] = useState(0);
   const [loadedComponents, setLoadedComponents] = useState({
     bass: false,
     beatVisualizer: false
@@ -52,11 +55,21 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
     setGameState('countdown');
     setCountdownNumber(3);
     
+    try {
+      // Play countdown sound
+      const audioManager = AudioManager.getInstance();
+      audioManager.playSound('countdown', 0.7);
+    } catch (error) {
+      console.error("Error playing countdown sound:", error);
+    }
+    
     // Simulate countdown with setTimeout
     setTimeout(() => {
       setCountdownNumber(2);
+      
       setTimeout(() => {
         setCountdownNumber(1);
+        
         setTimeout(() => {
           console.log("Countdown finished, starting game");
           handleCountdownComplete();
@@ -70,6 +83,14 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
     try {
       console.log('Countdown complete, starting game');
       
+      // Try to play "start" sound
+      try {
+        const audioManager = AudioManager.getInstance();
+        audioManager.playSound('start', 0.8);
+      } catch (soundError) {
+        console.warn("Could not play start sound:", soundError);
+      }
+      
       // Create global animation functions array
       window.gameAnimationFunctions = [];
       
@@ -77,7 +98,10 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
       window.gameState = {
         score: 0,
         combo: 0,
-        isPlaying: true
+        perfectCount: 0,
+        maxCombo: 0,
+        isPlaying: true,
+        timingFeedback: null
       };
       
       // Create global config with 'bass' property
@@ -91,17 +115,25 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
             maxSpeed: 5
           }
         },
-        difficulty: 'normal'
+        difficulty: 'normal',
+        audio: {
+          enabled: true,
+          volume: 0.7
+        }
       };
       
       // Start the game
+      setScore(0);
+      setCombo(0);
+      setPerfectHits(0);
+      setMaxCombo(0);
       setGameState('playing');
       setShowInstructions(true);
       
-      // Hide instructions after 8 seconds
+      // Hide instructions after 12 seconds (longer for the enhanced instructions)
       setTimeout(() => {
         setShowInstructions(false);
-      }, 8000);
+      }, 12000);
       
       // Load components gradually
       setTimeout(() => {
@@ -132,18 +164,22 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
   
   // Handle game over
   const handleGameOver = useCallback(() => {
+    const finalScore = window.gameState?.score || 0;
+    const finalPerfectHits = window.gameState?.perfectCount || 0;
+    const finalMaxCombo = window.gameState?.maxCombo || 0;
+    
     setGameState('gameover');
     
-    // Stop music if playing
+    // Play game over effects
     try {
       const audioManager = AudioManager.getInstance();
-      audioManager.stopMusic();
+      audioManager.playGameOverEffects();
     } catch (error) {
-      console.error("Error stopping music:", error);
+      console.error("Error playing game over effects:", error);
     }
     
-    if (onGameOver && window.gameState) {
-      onGameOver(window.gameState.score);
+    if (onGameOver) {
+      onGameOver(finalScore, finalPerfectHits, finalMaxCombo);
     }
   }, [onGameOver]);
   
@@ -151,6 +187,9 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
   const handleRestart = useCallback(() => {
     setGameState('start');
     setScore(0);
+    setCombo(0);
+    setPerfectHits(0);
+    setMaxCombo(0);
     setLoadedComponents({
       bass: false,
       beatVisualizer: false
@@ -163,6 +202,12 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
       const scoreUpdateInterval = setInterval(() => {
         if (window.gameState) {
           setScore(window.gameState.score);
+          setCombo(window.gameState.combo || 0);
+          setPerfectHits(window.gameState.perfectCount || 0);
+          
+          if (window.gameState.maxCombo) {
+            setMaxCombo(window.gameState.maxCombo);
+          }
         }
       }, 100);
       
@@ -175,6 +220,9 @@ export function useGameState({ onGameOver }: UseGameStateProps = {}) {
     setGameState,
     countdownNumber,
     score,
+    combo,
+    perfectHits,
+    maxCombo,
     loadedComponents,
     showInstructions,
     startGame,

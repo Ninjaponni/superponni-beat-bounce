@@ -1,85 +1,54 @@
 
-import { RhythmEngine } from '../utils/RhythmEngine';
-import AudioManager from '../utils/AudioManager';
-
-interface GameConfig {
-  physics: {
-    bass: {
+interface Window {
+  // Game state and management
+  gameState?: {
+    score: number;
+    combo: number;
+    perfectCount: number;
+    maxCombo: number;
+    isPlaying: boolean;
+    timingFeedback?: 'EARLY' | 'PERFECT' | 'LATE' | null;
+  };
+  gameConfig?: {
+    physics: {
+      bass: {
+        enabled: boolean;
+        gravity: number;
+        airResistance: number;
+        bounceFactor: number;
+        maxSpeed: number;
+      }
+    };
+    difficulty: string;
+    audio: {
       enabled: boolean;
-      gravity: number;
-      airResistance: number;
-      bounceFactor: number;
-      maxSpeed: number;
+      volume: number;
     };
   };
-  difficulty: 'easy' | 'normal' | 'hard';
+  gameScene?: THREE.Scene;
+  gameBass?: THREE.Object3D;
+  gameAnimationFunctions?: Array<(delta?: number) => void>;
+  _debugLogs?: any[];
+  
+  // Utility functions and classes
+  bassController?: {
+    update(deltaTime: number): void;
+    handleHit(quality: string): void;
+  };
+  checkHit?: () => { hit: boolean; quality: string; timing?: 'early' | 'perfect' | 'late' };
+  rhythmEngine?: RhythmEngine;
+  
+  // Audio management
+  AudioManager?: {
+    getInstance: () => any;
+  };
 }
 
-interface BassController {
-  update: (delta: number) => void;
-  handleHit: (quality?: string) => void;
-  position?: { x: number; y: number; z: number };
-  velocity?: { x: number; y: number; z: number };
-}
-
-type LogLevel = 'info' | 'warn' | 'error' | 'debug';
+// Make sure LogLevel is consistent between files
+type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
   level: LogLevel;
   message: string;
   timestamp: Date;
 }
-
-interface GameState {
-  score: number;
-  combo: number;
-  isPlaying: boolean;
-}
-
-type HitQuality = 'perfect' | 'good' | 'ok' | 'miss';
-
-interface HitResult {
-  hit: boolean;
-  quality: HitQuality;
-}
-
-declare global {
-  interface Window {
-    gameConfig?: GameConfig;
-    gameAnimationFunctions?: Array<(delta: number) => void>;
-    gameBass?: THREE.Object3D;
-    gameScene?: THREE.Scene;
-    bassController?: BassController;
-    rhythmEngine?: RhythmEngine;
-    _debugLogs?: Array<LogEntry>;
-    
-    // Global game state
-    gameState?: GameState;
-    
-    // Function to check hit timing
-    checkHit?: () => HitResult;
-    
-    // Global AudioManager
-    AudioManager?: {
-      getInstance: () => AudioManager;
-    };
-    
-    // Custom events
-    addEventListener(
-      type: 'game:hit',
-      listener: (event: CustomEvent<{
-        quality: HitQuality;
-        targetElement: HTMLElement | null;
-      }>) => void,
-      options?: boolean | AddEventListenerOptions
-    ): void;
-    removeEventListener(
-      type: 'game:hit',
-      listener: (event: CustomEvent) => void,
-      options?: boolean | EventListenerOptions
-    ): void;
-    dispatchEvent(event: Event): boolean;
-  }
-}
-
-export {};
