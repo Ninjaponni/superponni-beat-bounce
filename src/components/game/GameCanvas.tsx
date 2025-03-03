@@ -110,6 +110,7 @@ const GameCanvas: React.FC<GameCanvasProps> = ({ children, gameState }) => {
       
       const handleKeyDown = (event: KeyboardEvent) => {
         if (event.code === 'Space' && gameState === 'playing') {
+          event.preventDefault(); // Prevent scrolling
           console.log("Space key pressed - GameCanvas event handler");
           try {
             if (window.checkHit) {

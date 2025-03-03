@@ -5,8 +5,8 @@ import useBeatVisualizer from '@/hooks/useBeatVisualizer';
 import { toast } from 'sonner';
 import { Button } from "@/components/ui/button";
 
-// Use a static variable outside the component to track initialization state
-let globalBeatVisualizerInitialized = false;
+// Create a static variable to track mount/unmount cycles and prevent duplicate initialization
+let mountCounter = 0;
 
 const BeatVisualizer: React.FC = () => {
   const { containerRef, isActive, audioManager } = useBeatVisualizer();
@@ -15,39 +15,40 @@ const BeatVisualizer: React.FC = () => {
   const [tutorialStep, setTutorialStep] = useState(1);
   const [initialized, setInitialized] = useState(false);
   const activeBeatsRef = useRef<HTMLElement[]>([]);
+  const instanceId = useRef(++mountCounter);
+  
+  console.log(`BeatVisualizer mounting - instance ${instanceId.current}, initialized: ${initialized}`);
   
   useEffect(() => {
-    console.log("BeatVisualizer mounting");
-    
-    if (initialized || globalBeatVisualizerInitialized) {
-      console.log("BeatVisualizer already initialized, skipping duplicate setup");
+    // Only initialize once
+    if (initialized) {
+      console.log(`BeatVisualizer instance ${instanceId.current} already initialized, skipping setup`);
       return;
     }
     
     try {
+      console.log(`BeatVisualizer instance ${instanceId.current} initializing`);
+      
       // Create container for beat circles if it doesn't exist
       if (!containerRef.current) {
         console.warn("BeatVisualizer container not available");
         return;
       }
       
-      // Clean up any previous elements before re-initializing
-      const existingTrack = containerRef.current.querySelector('.beat-track');
-      const existingTargetZone = containerRef.current.querySelector('.target-zone');
-      
-      if (existingTrack || existingTargetZone) {
-        console.warn("Found existing beat visualizer elements, cleaning up first");
-        Array.from(containerRef.current.children).forEach((child) => {
-          if (child.classList && 
-              (child.classList.contains('beat-track') || 
-               child.classList.contains('target-zone') || 
-               child.classList.contains('timing-feedback') || 
-               child.classList.contains('combo-counter') ||
-               child.classList.contains('beat-circle'))) {
-            containerRef.current?.removeChild(child);
-          }
-        });
-      }
+      // Clean up any previous elements
+      console.log("Cleaning up any previous elements");
+      Array.from(containerRef.current.children).forEach((child) => {
+        if (child instanceof HTMLElement && 
+            (child.classList.contains('beat-track') || 
+             child.classList.contains('target-zone') || 
+             child.classList.contains('timing-feedback') || 
+             child.classList.contains('combo-counter') ||
+             child.classList.contains('beat-circle') ||
+             child.classList.contains('instruction-box') ||
+             child.classList.contains('instruction-text'))) {
+          containerRef.current?.removeChild(child);
+        }
+      });
       
       // Create beat track (the line)
       const track = document.createElement('div');
@@ -117,7 +118,7 @@ const BeatVisualizer: React.FC = () => {
               activeBeatsRef.current.splice(index, 1);
             }
           }
-        }, timeToTargetMs);
+        }, timeToTargetMs + 500); // Added buffer time
       };
       
       // Register with AudioManager to create beat circles in sync with music
@@ -130,7 +131,30 @@ const BeatVisualizer: React.FC = () => {
       audioManager.onBeat(beatCallback);
       
       // Create first beat immediately for visual reference
-      createBeatCircle();
+      setTimeout(() => {
+        createBeatCircle();
+      }, 200);
+      
+      // Update timing feedback periodically
+      const feedbackInterval = setInterval(() => {
+        if (window.gameState && window.gameState.timingFeedback && timingFeedback) {
+          let timingClass = '';
+          
+          if (window.gameState.timingFeedback === 'FOR TIDLIG') {
+            timingClass = 'timing-early';
+          } else if (window.gameState.timingFeedback === 'PERFEKT') {
+            timingClass = 'timing-perfect';
+          } else if (window.gameState.timingFeedback === 'FOR SENT') {
+            timingClass = 'timing-late';
+          }
+          
+          timingFeedback.textContent = window.gameState.timingFeedback;
+          timingFeedback.className = 'timing-feedback ' + timingClass;
+          
+          // Clear timing feedback after 1 second
+          window.gameState.timingFeedback = null;
+        }
+      }, 100);
       
       // After 8 seconds, hide the instructions
       setTimeout(() => {
@@ -206,7 +230,9 @@ const BeatVisualizer: React.FC = () => {
           
           // Hide timing feedback after 1 second
           setTimeout(() => {
-            timingFeedback.textContent = '';
+            if (timingFeedback.parentNode) {
+              timingFeedback.textContent = '';
+            }
           }, 1000);
         }
         
@@ -276,12 +302,22 @@ const BeatVisualizer: React.FC = () => {
       window.addEventListener('game:hit', handleHitEvent as EventListener);
       window.addEventListener('game:perfectMilestone', handlePerfectMilestone as EventListener);
       
+      // Mark as initialized
       setInitialized(true);
-      globalBeatVisualizerInitialized = true;
+      
+      // Add an instruction text element
+      const instructionText = document.createElement('div');
+      instructionText.className = 'instruction-text';
+      instructionText.textContent = 'Trykk på mellomrom når sirkelen er i midten';
+      containerRef.current.appendChild(instructionText);
       
       // Clean up
       return () => {
-        console.log("BeatVisualizer cleaning up");
+        console.log(`BeatVisualizer instance ${instanceId.current} cleaning up`);
+        
+        // Clear interval
+        clearInterval(feedbackInterval);
+        
         // Remove event listeners
         window.removeEventListener('game:hit', handleHitEvent as EventListener);
         window.removeEventListener('game:perfectMilestone', handlePerfectMilestone as EventListener);
@@ -289,7 +325,6 @@ const BeatVisualizer: React.FC = () => {
         // Remove beat callback from AudioManager
         if (audioManager) {
           audioManager.offBeat(beatCallback);
-          console.log("Beat callback removed");
         }
         
         // Remove all active beats
@@ -299,9 +334,6 @@ const BeatVisualizer: React.FC = () => {
           }
         });
         activeBeatsRef.current = [];
-        
-        setInitialized(false);
-        globalBeatVisualizerInitialized = false;
       };
     } catch (error) {
       console.error("Error in BeatVisualizer:", error);
@@ -404,7 +436,6 @@ const BeatVisualizer: React.FC = () => {
           </Button>
         </div>
       )}
-      <div className="instruction-text">Trykk på mellomrom når sirkelen er i midten</div>
       {renderTutorial()}
     </div>
   );

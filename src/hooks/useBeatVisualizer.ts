@@ -16,6 +16,7 @@ const hookState = {
   initialized: false,
   initializing: false,
   cleanupFunction: null as (() => void) | null,
+  beatCallbacks: [] as ((time: number) => void)[],
 };
 
 export function useBeatVisualizer() {
@@ -25,6 +26,8 @@ export function useBeatVisualizer() {
   const [rhythmEngine, setRhythmEngine] = useState<RhythmEngine | null>(null);
   
   useEffect(() => {
+    console.log("useBeatVisualizer hook called, initialized state:", hookState.initialized);
+    
     // Only run the initialization once
     if (hookState.initialized || hookState.initializing) {
       console.log("BeatVisualizer hook already initialized, reusing instance");
@@ -50,6 +53,15 @@ export function useBeatVisualizer() {
     setRhythmEngine(engine);
     
     try {
+      // Clear existing callbacks to prevent duplication
+      if (hookState.beatCallbacks.length > 0) {
+        console.log("Cleaning up existing beat callbacks:", hookState.beatCallbacks.length);
+        hookState.beatCallbacks.forEach(callback => {
+          audio.offBeat(callback);
+        });
+        hookState.beatCallbacks = [];
+      }
+      
       // Get BPM info
       const { bpm, interval: beatInterval } = audio.getBeatInfo();
       console.log(`Using BPM: ${bpm}, interval: ${beatInterval}ms`);
@@ -69,6 +81,7 @@ export function useBeatVisualizer() {
       
       // Register beat callback with AudioManager
       audio.onBeat(beatCallback);
+      hookState.beatCallbacks.push(beatCallback);
       
       // Improved hit detection using RhythmEngine with combo system
       const checkHit = (): HitResult => {
@@ -130,9 +143,10 @@ export function useBeatVisualizer() {
                 window.gameState.maxCombo = window.gameState.combo;
               }
               
-              // Set timing feedback
-              window.gameState.timingFeedback = result.timing === 'early' ? 'EARLY' : 
-                                                result.timing === 'late' ? 'LATE' : 'PERFECT';
+              // Set timing feedback - make sure it's visible in the UI
+              window.gameState.timingFeedback = result.timing === 'early' ? 'FOR TIDLIG' : 
+                                               result.timing === 'late' ? 'FOR SENT' : 'PERFEKT';
+              console.log("Setting timing feedback:", window.gameState.timingFeedback);
             }
             
             // Play hit sound
@@ -177,7 +191,10 @@ export function useBeatVisualizer() {
         
         // Remove beat callback from AudioManager
         if (audio) {
-          audio.offBeat(beatCallback);
+          hookState.beatCallbacks.forEach(callback => {
+            audio.offBeat(callback);
+          });
+          hookState.beatCallbacks = [];
         }
         
         // Remove global reference to checkHit
