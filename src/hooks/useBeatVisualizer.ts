@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import AudioManager from '@/utils/AudioManager';
 import RhythmEngine from '@/utils/RhythmEngine';
+import { TimingFeedback } from '@/components/game/BeatVisualizer';
 
 type HitQuality = 'perfect' | 'good' | 'ok' | 'miss';
 
@@ -143,9 +144,14 @@ export function useBeatVisualizer() {
                 window.gameState.maxCombo = window.gameState.combo;
               }
               
+              // Convert timing to uppercase feedback types
+              let timingFeedback: TimingFeedback = null;
+              if (result.timing === 'early') timingFeedback = 'EARLY';
+              else if (result.timing === 'perfect') timingFeedback = 'PERFECT';
+              else if (result.timing === 'late') timingFeedback = 'LATE';
+              
               // Set timing feedback - make sure it's visible in the UI
-              window.gameState.timingFeedback = result.timing === 'early' ? 'FOR TIDLIG' : 
-                                               result.timing === 'late' ? 'FOR SENT' : 'PERFEKT';
+              window.gameState.timingFeedback = timingFeedback;
               console.log("Setting timing feedback:", window.gameState.timingFeedback);
             }
             
@@ -227,3 +233,4 @@ export function useBeatVisualizer() {
 }
 
 export default useBeatVisualizer;
+

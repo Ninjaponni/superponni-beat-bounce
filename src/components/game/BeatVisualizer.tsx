@@ -8,6 +8,14 @@ import { Button } from "@/components/ui/button";
 // Create a static variable to track mount/unmount cycles and prevent duplicate initialization
 let mountCounter = 0;
 
+// Define consistent types for timing feedback
+export type TimingFeedback = 'EARLY' | 'PERFECT' | 'LATE' | null;
+const TIMING_DISPLAY: Record<string, string> = {
+  'EARLY': 'FOR TIDLIG',
+  'PERFECT': 'PERFEKT',
+  'LATE': 'FOR SENT'
+};
+
 const BeatVisualizer: React.FC = () => {
   const { containerRef, isActive, audioManager } = useBeatVisualizer();
   const [showInstructions, setShowInstructions] = useState(true);
@@ -140,15 +148,16 @@ const BeatVisualizer: React.FC = () => {
         if (window.gameState && window.gameState.timingFeedback && timingFeedback) {
           let timingClass = '';
           
-          if (window.gameState.timingFeedback === 'FOR TIDLIG') {
+          if (window.gameState.timingFeedback === 'EARLY') {
             timingClass = 'timing-early';
-          } else if (window.gameState.timingFeedback === 'PERFEKT') {
+          } else if (window.gameState.timingFeedback === 'PERFECT') {
             timingClass = 'timing-perfect';
-          } else if (window.gameState.timingFeedback === 'FOR SENT') {
+          } else if (window.gameState.timingFeedback === 'LATE') {
             timingClass = 'timing-late';
           }
           
-          timingFeedback.textContent = window.gameState.timingFeedback;
+          // Display the Norwegian translation of the timing feedback
+          timingFeedback.textContent = TIMING_DISPLAY[window.gameState.timingFeedback] || '';
           timingFeedback.className = 'timing-feedback ' + timingClass;
           
           // Clear timing feedback after 1 second
